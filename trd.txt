@@ -1,0 +1,1424 @@
+================================================================================
+              EVENTDESK — TECHNICAL REQUIREMENTS DOCUMENT
+                    College Event Management Portal
+                               v2.0 — FINAL BUILD REFERENCE
+================================================================================
+
+Document Type    : Technical Requirements Document (TRD)
+Version          : 2.0 (Patched — All PRD gaps resolved)
+Status           : Final — One-Shot AI Studio Build Ready
+Authors          : EventDesk Team / Rovexa
+Date             : March 2026
+Source Documents : EventDesk Synopsis + PRD v1.0 (both fully reconciled)
+
+WHAT CHANGED IN v2.0 vs v1.0 TRD
+──────────────────────────────────
+The earlier TRD missed or under-specified the following items from the PRD.
+All are now fully covered in this document:
+
+  GAP-01 : Font changed from Nunito → Poppins (PRD specifies Poppins explicitly)
+  GAP-02 : Color changed from blue/navy → Teal #008C7E primary (PRD locked)
+  GAP-03 : Hover tint is #F2FBF8 (very light teal) — not blue-light
+  GAP-04 : Success state color is soft green #A8D5C3 (not generic green)
+  GAP-05 : Signup page needs two big role buttons "I'm a Student" / "I'm an Organizer"
+  GAP-06 : Login heading copy locked: "Welcome back to campus! 🎉"
+  GAP-07 : Homepage needs a search bar (not just category filter)
+  GAP-08 : Countdown animation when < 24hrs remaining — must be fun/animated
+  GAP-09 : Event card poster on TOP of card (image first, then content below)
+  GAP-10 : QR modal style = Instagram-story-like full screen (not generic modal)
+  GAP-11 : Organizer dashboard must show "Mark as Completed" button per event
+  GAP-12 : Organizer promote-from-waitlist button in dashboard (manual promote)
+  GAP-13 : Waitlist shows user's exact queue position "You are #3 in queue"
+  GAP-14 : Certificate has teal border + "EventDesk Certificate" + college name placeholder
+  GAP-15 : Confetti animation on certificate download click
+  GAP-16 : Loading text copy locked: "Finding events near you…"
+  GAP-17 : Every single button has emoji (full list specified)
+  GAP-18 : All toasts are fun — locked copy examples given
+  GAP-19 : Error: scanner no internet → specific toast "Please connect to Wi-Fi"
+  GAP-20 : Error: PDF generation fail → fallback message required
+  GAP-21 : Testing checklist (register 5 students, scan 10 QRs, generate 5 certs)
+  GAP-22 : QR scanner text copy: "Point camera at student's QR 📱"
+  GAP-23 : Seats left badge on event cards (not just progress bar)
+  GAP-24 : Leaderboard shows emoji medals (not just rank numbers)
+
+
+================================================================================
+                              SECTION 1 — DESIGN SYSTEM
+================================================================================
+
+────────────────────────────────────────────────────────────────────────────────
+1.1 DESIGN PHILOSOPHY
+────────────────────────────────────────────────────────────────────────────────
+
+Reference aesthetic : Myna UI screenshot — white bg, cartoon energy, fun rounded font
+Vibe               : College-fun, Instagram-native, not corporate, not childish
+Key rule           : EVERY button has an emoji. EVERY toast is written in fun voice.
+Image strategy     : 3D Pixar-style cartoon PNG characters (transparent bg) floating
+                     in sections — generated via Nano Banana Pro
+
+────────────────────────────────────────────────────────────────────────────────
+1.2 COLOR TOKENS (LOCKED — DO NOT CHANGE)
+────────────────────────────────────────────────────────────────────────────────
+
+Primary background  : #FFFFFF  (pure white — all pages)
+Hover tint          : #F2FBF8  (very light teal — ONLY on hover states, not bg)
+Primary accent      : #008C7E  (teal — all primary buttons, links, active states)
+Primary dark        : #006B60  (teal dark — button hover, pressed states)
+Success / attend    : #A8D5C3  (soft green — attendance confirmed, success badges)
+Success text        : #1A6B52  (dark green — text on soft green backgrounds)
+Warning / waitlist  : #F59E0B  (amber — waitlist badges, seat warnings)
+Error               : #EF4444  (red — form errors, duplicate scan, invalid QR)
+Text primary        : #1E293B  (dark slate — all body text)
+Text muted          : #64748B  (gray — subtitles, labels, placeholder text)
+Border              : #E2E8F0  (light gray — card borders, dividers, inputs)
+Card background     : #FFFFFF  (white — all cards)
+Tag / chip bg       : #E6F4F1  (light teal — category badges bg)
+Tag / chip text     : #008C7E  (teal — category badge text)
+
+NOTE: Do NOT use blue (#2563EB) anywhere. That was the v1 TRD error.
+The PRD locks teal (#008C7E) as the single primary accent throughout.
+
+────────────────────────────────────────────────────────────────────────────────
+1.3 TYPOGRAPHY (LOCKED)
+────────────────────────────────────────────────────────────────────────────────
+
+Primary font    : Poppins (NOT Nunito — PRD specifies Poppins explicitly)
+Body font       : Poppins (same family, different weight)
+
+Google Fonts import:
+  https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap
+
+Type scale:
+  Hero H1          : Poppins 800, 48–56px, #1E293B (dark slate)
+  Page heading H2  : Poppins 700, 28–32px, #1E293B  ← PRD specifies 28-32px bold
+  Card title H3    : Poppins 700, 20–22px, #1E293B
+  Body regular     : Poppins 400, 16px, #1E293B      ← PRD specifies 16px body
+  Body medium      : Poppins 500, 16px, #1E293B
+  Label / badge    : Poppins 600, 12–13px
+  Button text      : Poppins 600, 15–16px
+  Nav links        : Poppins 500, 14px, #64748B
+
+────────────────────────────────────────────────────────────────────────────────
+1.4 SPACING & RADIUS
+────────────────────────────────────────────────────────────────────────────────
+
+--space-xs  : 8px
+--space-sm  : 16px
+--space-md  : 24px
+--space-lg  : 48px
+--space-xl  : 80px
+--space-2xl : 120px
+
+--radius-pill : 100px   (all primary buttons)
+--radius-card : 16px    (cards — slightly tighter than v1 for Poppins feel)
+--radius-sm   : 10px    (inputs, chips)
+--radius-xs   : 6px     (tags, tiny elements)
+
+────────────────────────────────────────────────────────────────────────────────
+1.5 SHADOWS
+────────────────────────────────────────────────────────────────────────────────
+
+--shadow-card  : 0 4px 20px rgba(0, 140, 126, 0.08)
+--shadow-hover : 0 10px 40px rgba(0, 140, 126, 0.14)
+--shadow-btn   : 0 4px 14px rgba(0, 140, 126, 0.35)
+--shadow-modal : 0 20px 60px rgba(0, 0, 0, 0.15)
+
+────────────────────────────────────────────────────────────────────────────────
+1.6 BUTTON SPEC (EVERY BUTTON NEEDS EMOJI — PRD LOCKED)
+────────────────────────────────────────────────────────────────────────────────
+
+Primary button:
+  bg: #008C7E | text: white | radius: 100px | Poppins 600 16px
+  padding: 14px 28px | shadow-btn
+  hover: bg #006B60 + scale(1.02)
+
+Secondary / outline button:
+  bg: transparent | border: 2px solid #008C7E | text: #008C7E
+  same radius and padding | hover: bg #F2FBF8
+
+Danger button:
+  bg: #EF4444 | white text | same radius
+
+EMOJI BUTTON COPY (ALL LOCKED FROM PRD):
+  Register             → "Register 🎟️"
+  Scan QR              → "Scan 📱"    (organizer scanner open button)
+  Download certificate → "Download 📄"
+  Create event         → "+ Create New Event 🎉"
+  View details         → "View Details 👀"
+  Join waitlist        → "Join Waitlist ⏳"
+  Mark completed       → "Mark as Completed ✅"
+  Promote waitlist     → "Promote 🚀"  (organizer waitlist action)
+  Download QR          → "Save QR 💾"
+  Sign up              → "Get Started 🙌"
+  Login                → "Sign In →"
+  Sign out             → "Sign Out 👋"
+
+────────────────────────────────────────────────────────────────────────────────
+1.7 TOAST NOTIFICATIONS (FUN COPY — LOCKED)
+────────────────────────────────────────────────────────────────────────────────
+
+Styling:
+  Position    : top-right, 16px margin
+  Width       : 320px max
+  Radius      : 14px
+  Font        : Poppins 600, 14px
+  Animation   : slide in from right, fade out after 4s
+
+Success toasts (teal left border 4px, #E6F4F1 bg):
+  Registration success    : "You're in! 🎉 Check your email for the QR code."
+  Certificate downloaded  : "Certificate saved! 📄 You earned it."
+  Attendance marked       : "Attended ✅ [Name] is all set!"
+  Event created           : "Event live! 🚀 Students can register now."
+  Waitlist joined         : "You're queued! ⏳ We'll notify you if a spot opens."
+
+Error toasts (#FEE2E2 bg, red left border 4px):
+  Phone missing           : "Phone number please 📞"
+  Seats full              : "This event is full 😔 Try the waitlist!"
+  Invalid QR              : "This QR is not for this event ❌"
+  Duplicate scan          : "Already marked attended 🔁 [Name] checked in at [time]"
+  No internet (scanner)   : "Please connect to Wi-Fi 📶"  ← PRD locked copy
+  PDF fail                : "Couldn't generate certificate 😕 Try again in a moment."
+
+Info toasts (#E6F4F1 bg, teal left border 4px):
+  Loading                 : shown inline, not toast (see spinner section)
+  Waitlist spot open      : shown via email, not toast
+
+────────────────────────────────────────────────────────────────────────────────
+1.8 LOADING STATES
+────────────────────────────────────────────────────────────────────────────────
+
+Spinner style: circular teal spinner (#008C7E), 32px, 1s rotation
+Text below spinner (LOCKED FROM PRD): "Finding events near you…"
+  — This exact copy must be used on the events listing load state.
+
+Other loading texts (context-specific):
+  Submitting registration  : "Saving your spot…"
+  Generating certificate   : "Making your certificate ✨"
+  Uploading poster         : "Uploading image…"
+  Loading dashboard        : "Loading your events…"
+
+RULE: Never show a spinner without text. Ever. (Bug from original build — fixed.)
+
+────────────────────────────────────────────────────────────────────────────────
+1.9 ANIMATION SPEC
+────────────────────────────────────────────────────────────────────────────────
+
+Card stagger load:
+  opacity 0 → 1 + translateY(16px → 0), 0.35s ease, 80ms delay per card
+
+Hero sequence:
+  1. Heading     : delay 0ms,   fadeUp
+  2. Subtext     : delay 120ms, fadeUp
+  3. CTA buttons : delay 240ms, fadeUp
+  4. Hero image  : delay 360ms, scale 0.95→1.0 + fadeIn
+
+Countdown animation (< 24hrs remaining) — PRD specifies "fun animation":
+  When timeRemaining < 86400000ms (24hrs):
+    Add class .urgent to countdown container
+    .urgent digits: color #EF4444, fontWeight 800
+    .urgent: pulse animation — scale 1.0→1.04→1.0, 1s infinite
+    Add 🔴 prefix: "🔴 Starts in 2 hrs 14 mins"
+
+Seat bar fill animation:
+  width: 0 → actual% over 0.6s ease on page load
+
+Button hover: scale(1.02) + shadow-hover, 0.2s ease
+
+Modal open: scale(0.96→1.0) + opacity 0→1, 0.25s ease
+Modal close: scale(1.0→0.96) + opacity 1→0, 0.2s ease
+
+Confetti on certificate download (PRD requirement):
+  Use canvas-confetti CDN:
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+
+  Call on download button click:
+    confetti({
+      particleCount: 120,
+      spread: 70,
+      origin: { y: 0.6 },
+      colors: ['#008C7E', '#A8D5C3', '#F59E0B', '#ffffff']
+    });
+
+Scanner success card: slides up from bottom 0.3s ease-out
+
+Toast: translateX(110%→0) on in, translateX(0→110%) on out, 0.3s ease
+
+
+================================================================================
+                              SECTION 2 — PAGE SPECS
+================================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PAGE 1 — LANDING / HOME  (index.html)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ NAVBAR ]
+  Sticky | white bg | 1.5px bottom border #E2E8F0 | 64px height
+  Left   : "EventDesk" logo — Poppins 800, teal #008C7E
+  Center : Features | Events | Leaderboard | Login  (Poppins 500, muted)
+  Right  : "Get Started 🙌" pill button (teal fill, white text)
+  Mobile : hamburger menu collapse (Bootstrap navbar-toggler)
+  Scroll : backdrop blur(12px) when page scrolled > 10px
+
+[ HERO ]
+  White background with subtle radial teal glow (rgba(0,140,126,0.06)) centered
+  Heading : "Discover Events, Build Your College Story."
+            Poppins 800, 52px, #1E293B, line-height 1.1
+  Sub     : "One platform. Register in clicks. Scan in. Download certs same day."
+            Poppins 400, 18px, muted, max-width 520px, centered
+  Buttons : "Explore Events 👀" (teal fill pill) + "How It Works" (outline pill)
+  Image   : hero-students.png — full width bleed below buttons (see image guide)
+
+[ STATS BAR ]
+  bg: #F2FBF8 (light teal — this is the tint from PRD, used here as strip bg)
+  3 stats with vertical dividers:
+    "500+"      Events Hosted
+    "10,000+"   Registrations
+    "Same Day"  Certificate Delivery
+  Font: Poppins 800, 44px, teal for numbers | Poppins 500, 13px, muted for labels
+
+[ FEATURES — 6 CARDS 3×2 ]
+  Section heading: "Everything your college events need." — Poppins 700, 32px
+  Sub: "Built for students. Built for organizers. Zero spreadsheets." — muted 400
+
+  Cards (white bg, 16px radius, shadow-card, 1.5px border #E2E8F0):
+    Card 1: 🔍 Find Every Event     — Filter by category, no WhatsApp digging
+    Card 2: ⚡ Register in Seconds   — 3 clicks, QR in email
+    Card 3: 📱 Scan & You're In     — QR attendance under 5 seconds
+    Card 4: 🏆 Certs, Same Day      — Download the moment event ends
+    Card 5: ⏳ Smart Waitlist        — Queue position shown live
+    Card 6: 📊 Organizer Dashboard  — Live reg count + attendance stats
+
+[ HOW IT WORKS — 4 STEPS ]
+  Numbered horizontal flow: 01→02→03→04 with connector line
+    01 "Browse Events"  — Poppins 700, teal badge
+    02 "Register"       — get QR on email
+    03 "Scan In"        — QR at event door
+    04 "Download Cert"  — same day from dashboard
+  Image: how-it-works-student.png floats right (see image guide)
+
+[ LEADERBOARD PREVIEW ]
+  "Top Attendees This Month 🏆" — Poppins 700, 32px
+  Mini leaderboard table — top 5 rows with medal emoji (🥇🥈🥉 4️⃣ 5️⃣)
+  "See Full Leaderboard →" teal text link
+
+[ FOOTER ]
+  Simple. White bg. Top border #E2E8F0.
+  Left: EventDesk logo + "Your college events, sorted."
+  Right: Features | Events | GitHub | Contact
+  Bottom: "© 2026 EventDesk. Powered by Firebase + jsPDF + html5-qrcode."
+  Font: Poppins 400, 13px, muted
+
+[IMAGE PLACEHOLDER — HERO]
+───────────────────────────────────────────────────────────────────────────────
+  File     : hero-students.png
+  Prompt   : "Group of happy 3D cartoon college students in colorful outfits
+             holding phones and certificates, selfie-style angle looking up
+             at camera, warm vibrant colors, white transparent background,
+             Pixar style, diverse group, energetic, fun"
+  Size     : 1200 × 600px, PNG transparent
+  Placement: Full-width bleed below CTA buttons. Characters bottom-anchored.
+             filter: drop-shadow(0 16px 40px rgba(0,0,0,0.10))
+───────────────────────────────────────────────────────────────────────────────
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PAGE 2 — AUTH: SIGN UP  (signup.html)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PRD REQUIREMENT (GAP-05): "Sign-up page: two big buttons 'I'm a Student'
+and 'I'm an Organizer'" — this is the FIRST step, before the form appears.
+
+[ ROLE SELECTION SCREEN — Step 1 ]
+  Heading: "Join EventDesk! 🎉" — Poppins 800, 36px, #1E293B, centered
+  Sub    : "Tell us who you are first." — muted
+
+  Two large role cards (side by side, or stacked on mobile):
+
+  Card A — "I'm a Student 🎓"
+    bg: white | border: 2px solid #E2E8F0 | radius: 16px | padding: 40px
+    Icon: 🎓 (64px emoji, centered)
+    Title: "I'm a Student" — Poppins 700, 22px
+    Sub: "Browse events, register, get certs"
+    On click: highlight card (teal border 2px, #F2FBF8 bg) → show Step 2 form
+
+  Card B — "I'm an Organizer 🎤"
+    Same structure as Card A
+    Icon: 🎤
+    Sub: "Create events, scan QR, view stats"
+    On click: same highlight → show Step 2 form with organizer fields
+
+[ FORM SCREEN — Step 2 (appears after role selected) ]
+  Show selected role as a pill badge at top: "Student 🎓" or "Organizer 🎤" (teal)
+
+  Fields:
+    Full Name     : text input, required
+    Email         : email input, required
+    Password      : password + show/hide toggle, required
+
+  Submit: "Create Account 🙌" — full-width teal pill, 52px height
+
+  Below: "Already have an account? Sign In" — muted + teal link
+
+  Role is stored to Firestore users collection on account creation.
+  Redirect on success:
+    Student → student-dashboard.html
+    Organizer → organizer-dashboard.html
+
+[IMAGE PLACEHOLDER — SIGNUP]
+───────────────────────────────────────────────────────────────────────────────
+  File     : auth-students.png
+  Prompt   : "Group of 2-3 happy 3D cartoon students celebrating with
+             certificates and confetti, colorful outfits, white transparent
+             background, Pixar style, fun energy"
+  Size     : 600 × 600px, PNG transparent
+  Placement: Left column (50%) of desktop layout. Hidden on mobile.
+───────────────────────────────────────────────────────────────────────────────
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PAGE 3 — AUTH: LOGIN  (login.html)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PRD REQUIREMENT (GAP-06): Login heading copy LOCKED:
+  "Welcome back to campus! 🎉" — Poppins 800, 36px, #1E293B
+
+[ LAYOUT ]
+  Same two-column split as signup (illustration left, form right)
+
+[ FORM ]
+  Heading: "Welcome back to campus! 🎉"  ← exact copy, locked
+  Fields : Email + Password (show/hide toggle)
+  Submit : "Sign In →" — teal pill, full width
+  Below  : "Forgot password?" teal link + "Don't have an account? Sign Up"
+
+  Password reset: sendPasswordResetEmail → success toast
+    "Reset link sent! 📧 Check your inbox."
+
+  On successful login: check role from Firestore users doc
+    role == "student"   → student-dashboard.html
+    role == "organizer" → organizer-dashboard.html
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PAGE 4 — EVENTS LISTING  (events.html)   [PUBLIC — no login required]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ PAGE HEADER ]
+  Heading: "All Upcoming Events 🎉" — Poppins 700, 32px
+  Sub    : "Filter by what you love. Register in seconds." — muted
+
+[ SEARCH BAR — PRD REQUIREMENT (GAP-07) ]
+  Full-width search input (below header, above filters)
+  Placeholder: "Search events, workshops, fests…"
+  Poppins 400, 16px | 14px radius | 1.5px border #E2E8F0
+  focus: 2px teal border + shadow 0 0 0 3px rgba(0,140,126,0.12)
+  Icon: 🔍 inside left padding of input
+  Behavior: filters event cards in real-time on keyup (client-side, no Firestore call)
+  Searches: event title + description + venue (case-insensitive)
+  If no results: show empty state (image below)
+
+[ CATEGORY FILTER PILLS ]
+  Below search bar. Horizontal scroll on mobile.
+  Pills: All | Tech 🎓 | Cultural 🎭 | Sports 🏏 | Workshop 🛠️ | Other
+
+  Active pill  : teal bg (#008C7E), white text, Poppins 600
+  Inactive pill: white bg, #008C7E border 1.5px, teal text
+  Border radius: 100px (pill)
+
+  Below filters: sort dropdown — "Sort by: Date / Seats / Popular"
+
+[ EVENT CARDS GRID ]
+  3 col desktop | 2 col tablet | 1 col mobile
+  Cards: white bg, 16px radius, shadow-card, 1.5px border #E2E8F0
+  Hover: shadow-hover + translateY(-3px), 0.25s ease
+
+  PRD REQUIREMENT (GAP-09): Poster goes ON TOP of card — image first:
+  ┌──────────────────────────────────┐
+  │  [POSTER IMAGE — 220px height]   │  ← top of card, object-fit cover
+  │  object-fit: cover               │
+  ├──────────────────────────────────┤
+  │  [Category badge pill]  [Seats]  │  ← PRD GAP-23: seats left badge here
+  │                                  │
+  │  Event Title — Poppins 700, 18px │
+  │  📅 March 28  📍 Seminar Hall B  │
+  │                                  │
+  │  [Seat progress bar]             │
+  │  "48 / 60 seats taken"           │
+  │                                  │
+  │  Countdown timer                 │  ← animated if < 24hrs (GAP-08)
+  │                                  │
+  │  [View Details 👀]               │  ← teal outline pill button
+  └──────────────────────────────────┘
+
+  Seats left badge (top-right of card, absolute positioned):
+    bg: teal (#008C7E) | white text | pill | Poppins 600 12px
+    Content: "12 left" or "FULL" or "2 left 🔥"
+    When 0: bg red (#EF4444), text "FULL"
+    When ≤ 10: bg amber (#F59E0B), "X left 🔥"
+
+  Countdown < 24hrs animation (GAP-08):
+    Add .urgent class → red text + pulse animation (see animation spec section 1.9)
+    Display: "🔴 Starts in 2 hrs 14 mins"
+
+  Progress bar color rules:
+    > 50% remaining : teal (#008C7E)
+    10–50% remaining: amber (#F59E0B)
+    < 10% remaining : red (#EF4444)
+
+[ EMPTY STATE ]
+  Shown when search + filter returns no results.
+  Image: empty-state.png (Nano Banana Pro — see image guide)
+  Text: "No events here yet! Check back soon. 👀" — Poppins 500, 18px
+
+[IMAGE PLACEHOLDER — EMPTY STATE]
+───────────────────────────────────────────────────────────────────────────────
+  File     : empty-state.png
+  Prompt   : "Single 3D cartoon student sitting on a floating cloud looking
+             bored, holding a calendar with no events, white transparent
+             background, Pixar style, soft colors, funny expression"
+  Size     : 400 × 400px, PNG transparent
+  Placement: Centered in empty state area. Text below image.
+───────────────────────────────────────────────────────────────────────────────
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PAGE 5 — EVENT DETAIL  (event-detail.html)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ LAYOUT ]
+  Two columns: 60% left content | 40% right sticky sidebar
+
+[ LEFT CONTENT ]
+  Big poster (full width, 320px height, 16px radius, object-fit cover)
+  Event title: Poppins 800, 36px
+  Category badge pill (teal)
+  Description: Poppins 400, 16px
+  Organizer row: avatar circle (initials) + "Organized by [Name]"
+  Meta row: 📅 Date | ⏰ Time | 📍 Venue | 🏷️ Category
+
+[ RIGHT SIDEBAR (sticky) ]
+  Card: white bg, 20px radius, shadow-modal, 1.5px border
+
+  Seats section:
+    "[48] / [60] Seats Taken"
+    Progress bar (full width, 12px height, 16px radius)
+    Live badge: "🔴 12 spots left!" in amber Poppins 700
+
+  Countdown timer: D | H | M | S in small teal-bg white-text blocks
+    When < 24hrs: .urgent class → red, pulsing
+
+  [ Register 🎟️ ] — full width, teal fill, pill, 56px height, Poppins 700
+
+  When full, replace button with:
+    "This event is full 😔"
+    [ Join Waitlist ⏳ ] — amber outline pill button
+
+[ REGISTRATION MODAL ]
+  Triggered on "Register 🎟️" click
+  Backdrop: rgba(30,41,59,0.4) + blur(8px)
+  Card: 480px, 20px radius, shadow-modal, white bg
+
+  Header: "Register for [Event Name] 🎟️" — Poppins 700, 22px
+
+  Fields:
+    Full Name   — readonly, pre-filled from Firebase profile (gray bg)
+    Phone       — required. Placeholder: "10-digit mobile number"
+    Validation: on blur. Red border + error text if invalid.
+    Empty phone → error text "Phone number please 📞" (also shown as toast)
+
+  Submit: "Confirm Registration 🎟️" — full-width teal pill, 52px
+  Cancel: text link below, muted color
+
+  On success (replaces form):
+    Green check circle (scale-in animation, 0.3s)
+    "You're in! 🎉" — Poppins 800, 28px, teal
+    "Check your email for your QR code."
+    [View My Events 📅] — teal outline pill button
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PAGE 6 — STUDENT DASHBOARD  (student-dashboard.html)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ HEADER ]
+  "Hey [Name]! 👋" — Poppins 800, 40px, #1E293B
+  "[Name]" pulled from Firestore users doc
+  "Here's your event journey so far." — muted 400
+
+[ STATS ROW — 4 mini cards ]
+  Card 1: Events Registered   📅  (teal icon)
+  Card 2: Events Attended     ✅  (soft green icon)
+  Card 3: Certs Downloaded    📄  (amber icon)
+  Card 4: Leaderboard Rank    ⭐  (pink icon)
+  Style: white bg, 16px radius, shadow-card, number in Poppins 800 32px
+
+[ TABS ]
+  Pill tab switcher: All | Upcoming | Attended | Certificates
+  Active: teal bg, white text | Inactive: outline teal
+
+[ EVENT TABLE / CARDS ]
+  Per event card (white, shadow-card, 16px radius):
+    Event name | Date | Venue | Status badge | Action button
+
+  Status badges (pill, 100px radius, Poppins 600):
+    "Upcoming"             — teal bg, white text
+    "Attended ✅"          — #A8D5C3 bg, #1A6B52 text  ← PRD soft green
+    "Certificate Ready 🏆" — amber bg, dark text
+    "Waitlisted ⏳"        — amber-light bg, amber-dark text
+    "Cancelled"            — red-light bg, red text
+
+  Action buttons per status:
+    Upcoming   → [View QR Code 📱] teal outline
+    Attended   → [Download 📄] teal fill (+ confetti on click — GAP-15)
+    Waitlisted → "Position #[N] in queue" text (teal, Poppins 600)
+                 PRD REQUIREMENT (GAP-13): show exact queue position
+
+[ QR CODE MODAL ]
+  QR displayed 200×200px, centered
+  Event name below: Poppins 700, 18px
+  "Show this at the event entrance 📱" — muted
+  [Save QR 💾] — downloads QR PNG
+
+[ CERTIFICATE DOWNLOAD — CONFETTI (GAP-15) ]
+  On "Download 📄" button click:
+    1. Call generateCertificate()
+    2. Trigger canvas-confetti (see animation spec 1.9)
+    3. Show success toast: "Certificate saved! 📄 You earned it."
+
+[IMAGE PLACEHOLDER — STUDENT DASHBOARD]
+───────────────────────────────────────────────────────────────────────────────
+  File     : dashboard-student.png
+  Prompt   : "3D cartoon female student sitting at a desk with a laptop showing
+             a dashboard, smiling, books around her, colorful outfit, white
+             transparent background, Pixar style, warm lighting"
+  Size     : 500 × 500px, PNG transparent
+  Placement: Top-right of dashboard header, floating. Overflow out of header.
+───────────────────────────────────────────────────────────────────────────────
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PAGE 7 — ORGANIZER DASHBOARD  (organizer-dashboard.html)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ HEADER ]
+  "Organizer Hub 📊" — Poppins 800, 40px
+  Overview stat cards (same style as student dashboard)
+
+[ MY EVENTS LIST ]
+  "+ Create New Event 🎉" — teal pill button, top right
+
+  Per event card (wide, full-width):
+  ┌──────────────────────────────────────────────────────────────┐
+  │ [Poster] │ Title + Category badge │ Date │ Venue             │
+  │  80×80   ├──────────────────────────────────────────────────┤
+  │          │ Registered: 48/60  ████████░░  Attended: 41       │
+  │          │ Attendance Rate: 85.4%                            │
+  │          │ [Scan 📱] [Manage] [Mark as Completed ✅]         │
+  └──────────────────────────────────────────────────────────────┘
+
+  PRD REQUIREMENT (GAP-11): "Mark as Completed ✅" button per event card.
+  Visible only when event status is "Upcoming" or "Ongoing" AND event date has passed.
+  On click: updateDoc event status → "Completed" → triggers certificate unlock for
+  all students with attendance records for this event.
+  Confirmation dialog before marking: "Mark [Event Name] as completed?
+  Students will be able to download their certificates." [Confirm] [Cancel]
+
+[ WAITLIST MANAGEMENT — PRD REQUIREMENT (GAP-12) ]
+  For each event, expandable "Waitlist" section in manage view:
+  Shows list of waitlisted students: Name | Queue Position | "Promote 🚀" button
+
+  On "Promote 🚀" click:
+    Update first waitlist student's registration status → "registered"
+    Increment event registeredCount
+    Send EmailJS waitlist notification email to that student
+    Refresh waitlist display
+    Show organizer toast: "Spot offered to [Name]! 🚀"
+  NOTE: This is manual — organizer must click. No auto-promotion in v1.0.
+
+[ CREATE EVENT FORM ]
+  Triggered by "+ Create New Event 🎉"
+  Full-page form or large modal (scrollable):
+
+  Fields (all required unless noted):
+    Title        : text input
+    Description  : textarea, 4 rows
+    Category     : dropdown — Tech 🎓 | Cultural 🎭 | Sports 🏏 | Workshop 🛠️ | Other
+    Date & Time  : datetime-local input
+    Venue        : text input
+    Seat Cap     : number input, min 1
+    Poster       : file upload with drag-drop zone
+                   "Drag your poster here or click to upload 🖼️"
+                   Accept: image/jpeg, image/png. Max: 5MB.
+                   Preview shown immediately on file select.
+                   Upload to Firebase Storage → save URL in event doc.
+
+  Submit: "Create Event 🚀" — full-width teal pill, 52px
+  On success: toast "Event live! 🚀 Students can register now."
+  Event created with: status="Upcoming", registeredCount=0, organizerId=currentUser.uid
+
+[ QR SCANNER — INSTAGRAM STORY STYLE (GAP-10) ]
+  PRD REQUIREMENT: "Instagram-story-like full screen" QR modal
+
+  Design:
+    Full-screen modal: 100vw × 100vh, black (#0F1535) background
+    Camera feed: centered square, 320×320px, rounded 16px corners
+    Scan guide: animated teal scanning line moving top→bottom, 2s loop
+    Top-left: "✕" close button (white, 28px)
+    Top-center: "EventDesk" wordmark (white, Poppins 700)
+    Bottom area (white card sliding up from bottom, 280px height, 24px radius top):
+      Big text: "Point camera at student's QR 📱"  ← PRD LOCKED COPY (GAP-22)
+      Poppins 700, 20px, #1E293B
+      Sub: "[Event Name]" in teal, 14px
+      Status card appears here on scan result (see below)
+
+  On successful scan:
+    Bottom card turns: bg #A8D5C3 (soft green — PRD GAP-24 on SUCCESS color)
+    Text: "Attended ✅ [Student Name]" — Poppins 700, 22px, #1A6B52
+    Sub: "Scanned at [time]"
+    Slides up with 0.3s ease animation
+    Scanner continues for next student after 1.5s delay
+
+  On invalid / not-for-this-event QR:
+    Bottom card turns red (#FEE2E2)
+    Text: "This QR is not for this event ❌" — Poppins 700
+
+  On duplicate scan:
+    Bottom card turns amber
+    Text: "Already marked attended 🔁 [Name] checked in at [time]"
+
+  On no internet:
+    Toast immediately: "Please connect to Wi-Fi 📶" (PRD LOCKED copy — GAP-19)
+    Check navigator.onLine before starting scanner
+
+  Close: "✕" button → call html5QrCode.stop() → close modal
+
+[IMAGE PLACEHOLDER — ORGANIZER DASHBOARD]
+───────────────────────────────────────────────────────────────────────────────
+  File     : organizer-hero.png
+  Prompt   : "3D cartoon male college student holding a clipboard and pointing
+             upward confidently, organizer badge on chest, colorful outfit,
+             white transparent background, Pixar style, energetic"
+  Size     : 400 × 500px, PNG transparent
+  Placement: Top-right of organizer dashboard header, floating.
+───────────────────────────────────────────────────────────────────────────────
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PAGE 8 — LEADERBOARD  (leaderboard.html)   [PUBLIC]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PRD REQUIREMENT: "Top 10 students by attendance count. Shows name + number
+of events attended + emoji medal. Live update from attendance collection."
+
+[ PAGE HEADER ]
+  "Event Legends 🏆" — Poppins 800, 48px, centered
+  "The most active students on campus." — muted
+
+[ TOP 3 PODIUM ]
+  Positions: 2nd | 1st | 3rd (left to right)
+  Each block: avatar circle + name + count + medal emoji
+  Medal emojis (PRD locked — GAP-24): 🥇 🥈 🥉
+  Podium heights: 1st=160px, 2nd=120px, 3rd=100px
+  1st bg accent: gold (#F59E0B) border 2px
+
+[ FULL TOP 10 TABLE ]
+  White card, shadow-card, 16px radius
+  Columns: Rank (emoji) | Student Name | Events Attended | Badge
+
+  Rank display (PRD GAP-24 — emoji medals):
+    #1  🥇  |  #2  🥈  |  #3  🥉  |  #4  4️⃣  |  #5-10  plain number
+
+  Badges (pill):
+    1–3   events : "Starter"  — muted bg
+    4–6   events : "Rising 🌱" — teal-light bg, teal text
+    7–10  events : "Active ⚡" — green-light bg, green text
+    11–15 events : "Pro 🔥"   — amber-light bg, amber text
+    16+   events : "Legend 🏆" — gold bg, dark text
+
+  Live update: onSnapshot listener on attendance collection
+    Group by userId, count per user, sort descending, take top 10
+
+  Logged-in user's row: teal-light bg + left 3px teal border accent
+
+[IMAGE PLACEHOLDER — LEADERBOARD]
+───────────────────────────────────────────────────────────────────────────────
+  File     : leaderboard-trophy.png
+  Prompt   : "Single 3D cartoon student on a winner's podium holding a gold
+             trophy with a huge smile, confetti falling, colorful outfit,
+             white transparent background, Pixar style"
+  Size     : 400 × 500px, PNG transparent
+  Placement: Right side of leaderboard header, floating.
+───────────────────────────────────────────────────────────────────────────────
+
+
+================================================================================
+                              SECTION 3 — DATA MODEL
+================================================================================
+
+Collection: users
+  uid          : string (doc ID = Firebase Auth UID)
+  name         : string
+  email        : string
+  role         : string — "student" | "organizer"
+  phone        : string
+  createdAt    : timestamp
+
+Collection: events
+  eventId        : string (doc ID, auto-generated)
+  title          : string
+  description    : string
+  category       : string — "Tech"|"Cultural"|"Sports"|"Workshop"|"Other"
+  date           : timestamp
+  venue          : string
+  seatCap        : number
+  registeredCount: number (incremented on registration, decremented on cancel)
+  posterUrl      : string (Firebase Storage download URL)
+  organizerId    : string (uid of organizer)
+  status         : string — "Upcoming"|"Ongoing"|"Completed"
+  createdAt      : timestamp
+
+Collection: registrations
+  registrationId : string (doc ID, auto-generated)
+  userId         : string
+  eventId        : string
+  name           : string (snapshot of student name at registration time)
+  phone          : string
+  qrCode         : string (JSON encoded: {regId, userId, eventId})
+  status         : string — "registered"|"waitlisted"|"cancelled"
+  waitlistPos    : number | null (null if registered, queue position if waitlisted)
+  registeredAt   : timestamp
+
+Collection: attendance
+  attendanceId   : string (doc ID, auto-generated)
+  registrationId : string  ← CRITICAL: must match exactly, no typos
+  eventId        : string
+  userId         : string
+  scannedAt      : timestamp
+
+CONSISTENCY RULE: "registrationId" must be spelled identically across ALL
+collection writes and reads. This was the original build's critical bug.
+
+
+================================================================================
+                              SECTION 4 — SECURITY RULES
+================================================================================
+
+// Firestore rules
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /users/{userId} {
+      allow read, write: if request.auth.uid == userId;
+    }
+
+    match /events/{eventId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.organizerId == request.auth.uid;
+      allow update, delete: if request.auth != null
+        && resource.data.organizerId == request.auth.uid;
+    }
+
+    match /registrations/{regId} {
+      allow read: if request.auth.uid == resource.data.userId
+        || isOrganizerForEvent(resource.data.eventId);
+      allow create: if request.auth.uid == request.resource.data.userId;
+      allow update: if request.auth.uid == resource.data.userId;
+    }
+
+    match /attendance/{attId} {
+      allow read: if request.auth.uid == resource.data.userId
+        || isOrganizerForEvent(resource.data.eventId);
+      allow create: if request.auth != null
+        && isOrganizerForEvent(request.resource.data.eventId);
+    }
+
+    function isOrganizerForEvent(eventId) {
+      return get(/databases/$(database)/documents/events/$(eventId))
+        .data.organizerId == request.auth.uid;
+    }
+  }
+}
+
+// Firebase Storage rules
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /event-posters/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+  }
+}
+
+
+================================================================================
+                         SECTION 5 — JAVASCRIPT MODULE SPECS
+================================================================================
+
+[firebase-config.js]
+  Initialize Firebase app. Export: app, auth, db, storage.
+  Import at top of every other JS file. Never re-initialize.
+
+[auth.js]
+  signUpUser(name, email, password, role)
+    createUserWithEmailAndPassword
+    → write to users collection: {uid, name, email, role, phone:'', createdAt}
+    → redirect based on role
+
+  signInUser(email, password)
+    signInWithEmailAndPassword
+    → getDoc from users → check role → redirect
+
+  signOutUser() → signOut → index.html
+
+  resetPassword(email)
+    sendPasswordResetEmail
+    → toast "Reset link sent! 📧 Check your inbox."
+
+  checkAuth(requiredRole)
+    onAuthStateChanged listener
+    If no user → login.html
+    If role mismatch → correct dashboard
+    Call at top of every protected page before rendering content
+
+[events.js]
+  createEvent(eventData, posterFile)
+    Upload poster to Firebase Storage → getDownloadURL
+    addDoc to events collection
+
+  getEvents(categoryFilter, searchQuery)
+    Query events where status != "Completed", orderBy date asc
+    Apply category filter if set
+    Return array — search filtering done client-side in JS
+
+  getEventById(eventId) → getDoc
+
+  updateEventStatus(eventId, status)
+    Only callable by event's organizerId
+    When status → "Completed": no additional writes needed
+    (certificate eligibility check happens in certificate.js via attendance query)
+
+  listenToEventRegistrations(eventId, callback)
+    onSnapshot on registrations where eventId matches
+    callback receives live count
+    Returns unsubscribe fn — call on page unload
+
+[registration.js]
+  registerStudent(userId, eventId, phone)
+    Firestore transaction:
+      Get event doc → check registeredCount < seatCap
+      If full → call addToWaitlist() → return {waitlisted: true, position}
+      If available:
+        Generate QR data string: JSON.stringify({regId:'temp', userId, eventId})
+        addDoc to registrations → get registrationId
+        Update qrCode field with actual registrationId
+        Increment event registeredCount
+        Call sendConfirmationEmail()
+        Return {success: true, registrationId}
+
+  addToWaitlist(userId, eventId, phone)
+    Count current waitlisted docs for eventId
+    addDoc with status="waitlisted", waitlistPos=count+1
+    Return {waitlisted: true, position}
+
+  cancelRegistration(registrationId, eventId)
+    Update status → "cancelled"
+    Decrement registeredCount (transaction)
+    NOTE: does NOT auto-promote. Organizer promotes manually.
+
+  promoteFromWaitlist(eventId, registrationId)
+    Called by organizer click (not automatic)
+    Update registration status → "registered"
+    Set waitlistPos → null
+    Increment registeredCount
+    Send waitlist notification email
+    Update remaining waitlist positions (re-query and re-number)
+
+  getStudentRegistrations(userId)
+    Query registrations where userId matches
+    Join event data for each (use Promise.all + getDoc)
+    Return enriched array
+
+[attendance.js]
+  initScanner(elementId, eventId)
+    Html5Qrcode(elementId)
+    Config: fps:10, qrbox:{width:300,height:300}
+    Start with facingMode:"environment"
+    onScanSuccess → validateAndMarkAttendance(decodedText, eventId)
+    onScanFailure → silent (fires constantly between scans — do NOT show error)
+
+  validateAndMarkAttendance(qrData, eventId)
+    Check navigator.onLine — if false:
+      show toast "Please connect to Wi-Fi 📶" → return
+    Parse JSON from qrData
+    Validate: qrData.eventId must === currentEventId
+      Mismatch → show red "This QR is not for this event ❌"
+    Check attendance collection for existing doc with this registrationId
+      Found → show amber "Already marked attended 🔁 [Name] checked in at [time]"
+    All clear → addDoc to attendance collection
+    Get student name from users collection (qrData.userId)
+    Show green "Attended ✅ [Name]" result card
+
+  stopScanner()
+    html5QrCode.stop() wrapped in try-catch
+    Always call on modal close — do not leave camera running
+
+  hasStudentAttended(userId, eventId)
+    Query attendance where userId + eventId match
+    Return boolean — used to unlock Download button in student dashboard
+
+[certificate.js]
+  generateCertificate(studentName, eventName, eventDate)
+    First check hasStudentAttended() — if false, do NOT generate
+    
+    jsPDF landscape A4 (297×210mm):
+      Background: white (#FFFFFF)
+      
+      Outer border: 4mm inset rectangle
+        Stroke: 2px, teal (#008C7E)  ← PRD GAP-14: teal border
+      
+      Inner border: 7mm inset from outer
+        Stroke: 1px, #A8D5C3 (soft green), dashed
+
+      Content (all centered):
+        "EVENTDESK" — Helvetica Bold, 20px, teal, letter-spacing 4px, y=25mm
+        Thin divider line, teal, 40% width, y=30mm
+        "CERTIFICATE OF PARTICIPATION" — 13px, #64748B (muted), y=36mm
+        "This certifies that" — 11px, muted, y=52mm
+        [STUDENT NAME] — Helvetica Bold, 28px, #1E293B, y=62mm  ← PRD GAP-14
+        Thin divider 30% width, y=70mm
+        "has successfully participated in" — 11px muted, y=78mm
+        [EVENT NAME] — Helvetica Bold, 18px, teal, y=87mm
+        "held on [EVENT DATE]" — 11px muted, y=97mm
+
+        Footer (y=115mm):
+          Left: "Issued on [TODAY DATE]" — 9px muted
+          Right: "EventDesk — [College Name]"  ← PRD GAP-14: college name placeholder
+          Bottom center: "Powered by EventDesk | eventdesk.web.app" 8px muted
+
+      File name: Certificate_[StudentName]_[EventName].pdf (spaces → underscores)
+
+      On PDF save fail (try-catch):
+        Show toast: "Couldn't generate certificate 😕 Try again in a moment."
+        ← PRD GAP-20: PDF fail fallback — REQUIRED
+
+[email.js]
+  Import: https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js
+  Init: emailjs.init("YOUR_PUBLIC_KEY")
+
+  Template 1 — CONFIRMATION
+    Subject: "Your QR for {{event_name}} is here! 🎟️"
+    Body: "Hi {{student_name}},
+           You're confirmed for {{event_name}} on {{event_date}} at {{venue}}.
+           Your QR code is attached — show it at the gate! 📱
+           See you there! 🎉"
+    ← PRD GAP-09 locked copy: "Your QR for [Event] is attached. Show at gate!"
+    Params: student_name, event_name, event_date, venue, qr_code_url (data URL)
+
+  Template 2 — WAITLIST SPOT OPEN
+    Subject: "A seat just opened for {{event_name}}! 🚀"
+    Body: "Hey {{student_name}},
+           Great news! A seat opened up for {{event_name}}.
+           Head back to EventDesk to confirm your spot before it's gone!
+           [Confirm My Spot] → {{event_url}}"
+
+  sendConfirmationEmail(studentName, email, eventName, eventDate, venue, qrDataUrl)
+    emailjs.send(SERVICE_ID, CONFIRMATION_TEMPLATE, {...params})
+
+  sendWaitlistNotification(studentName, email, eventName, eventUrl)
+    emailjs.send(SERVICE_ID, WAITLIST_TEMPLATE, {...params})
+
+  QR Code Generation (for email):
+    Library: qrcode.js
+    CDN: https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js
+    Generate as canvas → toDataURL('image/png') → pass as qr_code_url to EmailJS
+    This is SEPARATE from html5-qrcode (that's for scanning, not generating)
+
+[utils.js]
+  formatDate(timestamp)
+    → "28 March 2026, 3:00 PM"
+
+  getCountdown(eventTimestamp)
+    → {days, hours, minutes, seconds, isUrgent}
+    isUrgent: true when < 86400000ms (24 hours)
+    Call setInterval every 1000ms to update display
+
+  validatePhone(phone)
+    → /^[0-9]{10}$/.test(phone) — returns boolean
+
+  validateEmail(email)
+    → standard email regex — returns boolean
+
+  showToast(message, type)
+    type: "success" | "error" | "warning" | "info"
+    Creates div, appends to body, removes after 4000ms
+    Animation: translateX(110%→0) in, translateX(0→110%) out
+
+  showLoadingSpinner(elementId, message)
+    REQUIRED: message param is mandatory — never silent spinner
+    Replaces element content with spinner SVG + message text below
+
+  hideLoadingSpinner(elementId, restoreContent)
+    Restores original element content
+
+  getSeatStatus(registeredCount, seatCap)
+    remaining = seatCap - registeredCount
+    percentage = (remaining / seatCap) * 100
+    Returns {remaining, percentage, label, colorClass, isUrgent}
+    label: "X left 🔥" | "FULL" | "X spots left"
+    colorClass: "teal" | "amber" | "red"
+    isUrgent: true when remaining ≤ 10
+
+  checkOnline()
+    Returns navigator.onLine
+    If false before scanner init: show toast "Please connect to Wi-Fi 📶"
+
+
+================================================================================
+                         SECTION 6 — ERROR HANDLING (ALL CASES — PRD LOCKED)
+================================================================================
+
+All error cases from PRD section 11 — each must be handled:
+
+ERROR-01: Seats full on registration attempt
+  Check: registeredCount >= seatCap before allowing form submit
+  Response: Replace "Register 🎟️" with "Join Waitlist ⏳" button
+  Toast: "This event is full 😔 Try the waitlist!"
+
+ERROR-02: Invalid QR (not for this event)
+  Check: qrData.eventId !== currentEventId
+  Response: Red result card in scanner "This QR is not for this event ❌"
+  No attendance record written
+
+ERROR-03: Scanner — no internet connection
+  Check: navigator.onLine before html5QrCode.start()
+  Response: Toast "Please connect to Wi-Fi 📶"  ← EXACT COPY FROM PRD
+  Do NOT start scanner
+
+ERROR-04: Duplicate scan (already attended)
+  Check: query attendance where registrationId matches before writing
+  Response: Amber result card "Already marked attended 🔁 [Name] checked in at [time]"
+
+ERROR-05: PDF generation failure
+  Wrap jsPDF in try-catch
+  On catch: toast "Couldn't generate certificate 😕 Try again in a moment."
+  ← PRD REQUIRES fallback message — do not let it silently fail
+
+ERROR-06: Empty phone on registration
+  Validation on submit: if phone empty or invalid
+  Response: Red border on input + error text "Phone number please 📞"
+  Also show toast: "Phone number please 📞"  ← EXACT COPY FROM PRD
+
+ERROR-07: Auth — wrong credentials
+  Firebase auth error codes:
+    auth/user-not-found → "No account with this email. Sign up first!"
+    auth/wrong-password → "Wrong password. Try again 🔑"
+    auth/too-many-requests → "Too many attempts. Try in a few minutes."
+
+ERROR-08: File upload too large (poster > 5MB)
+  Check file.size before upload attempt
+  Toast: "Image too large! Max size is 5MB 🖼️"
+
+
+================================================================================
+                         SECTION 7 — TESTING CHECKLIST (PRD SECTION 12 — LOCKED)
+================================================================================
+
+PRD requires all of the following to be verifiable before deployment:
+
+TEST-01: Registration + seat cap
+  [ ] Register 5 students for same event with seatCap=5
+  [ ] 6th registration attempt → waitlist offered
+  [ ] 6th student joins waitlist → shows queue position
+
+TEST-02: QR scanning (10 codes)
+  [ ] Scan 5 QR codes from email (printed on paper)
+  [ ] Scan 5 QR codes shown on phone screen
+  [ ] All 10 create attendance records in Firestore
+  [ ] Invalid QR → "not for this event" shown
+  [ ] Duplicate scan → duplicate toast shown
+
+TEST-03: Certificate generation (5 certs)
+  [ ] Mark event as Completed
+  [ ] Generate certificate for 5 different students
+  [ ] Each PDF: correct name, event name, date, teal border, college placeholder
+  [ ] Confetti fires on each download
+
+TEST-04: Category filter
+  [ ] Filter each category — only matching events shown
+  [ ] Search bar filters correctly across title + description + venue
+  [ ] "All" filter resets to show all events
+
+TEST-05: Leaderboard live update
+  [ ] Mark attendance for 3 students
+  [ ] Leaderboard updates within 2 seconds (onSnapshot)
+  [ ] Correct ordering by count
+
+TEST-06: Mobile responsiveness
+  [ ] All pages render correctly on 375px (iPhone SE width)
+  [ ] Nav collapses to hamburger
+  [ ] Event cards single column
+  [ ] QR scanner modal full screen
+  [ ] Register button visible without scroll
+
+TEST-07: Security rules
+  [ ] Student cannot read another student's registration (test via console)
+  [ ] Organizer cannot edit another organizer's event (test via console)
+  [ ] Unauthenticated user cannot write to any collection
+
+TEST-08: Waitlist flow
+  [ ] Join waitlist shows queue position "You are #3 in queue"
+  [ ] Organizer sees waitlist in dashboard with "Promote 🚀" button
+  [ ] Promote sends email to student
+  [ ] Promoted student's status updates to "registered"
+
+TEST-09: Loading + error states
+  [ ] Spinner always shows text "Finding events near you…" on events page
+  [ ] No silent spinners anywhere
+  [ ] Each error case from Section 6 produces correct toast/card
+
+
+================================================================================
+                         SECTION 8 — FILE STRUCTURE
+================================================================================
+
+eventdesk/
+├── index.html                    (Landing — public)
+├── events.html                   (Event listing — public)
+├── event-detail.html             (Single event — public)
+├── login.html                    (Auth)
+├── signup.html                   (Auth — 2 step: role select → form)
+├── student-dashboard.html        (Protected: student only)
+├── organizer-dashboard.html      (Protected: organizer only)
+├── leaderboard.html              (Public)
+├── css/
+│   ├── style.css                 (CSS vars, global resets, typography)
+│   ├── components.css            (Buttons, badges, cards, modals, toasts, spinner)
+│   └── pages/
+│       ├── landing.css
+│       ├── events.css
+│       ├── dashboard.css
+│       ├── auth.css
+│       └── leaderboard.css
+├── js/
+│   ├── firebase-config.js        (Firebase init — import first everywhere)
+│   ├── auth.js
+│   ├── events.js
+│   ├── registration.js
+│   ├── attendance.js
+│   ├── certificate.js
+│   ├── email.js
+│   ├── leaderboard.js
+│   └── utils.js
+├── assets/
+│   └── images/
+│       ├── hero-students.png         (Nano Banana Pro)
+│       ├── how-it-works-student.png  (Nano Banana Pro)
+│       ├── dashboard-student.png     (Nano Banana Pro)
+│       ├── organizer-hero.png        (Nano Banana Pro)
+│       ├── auth-students.png         (Nano Banana Pro)
+│       ├── leaderboard-trophy.png    (Nano Banana Pro)
+│       └── empty-state.png           (Nano Banana Pro)
+├── .firebaserc
+└── firebase.json
+
+
+================================================================================
+                         SECTION 9 — CDN IMPORTS (ALL PAGES)
+================================================================================
+
+Required in <head> of every HTML file:
+  <!-- Poppins font -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Bootstrap 5 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Firebase (modular SDK) -->
+  <script type="module" src="js/firebase-config.js"></script>
+
+Required before </body>:
+  <!-- Bootstrap 5 JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <!-- EmailJS -->
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+
+  <!-- QR Code generator (for email) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+On scanner page only:
+  <!-- html5-qrcode (scanner) -->
+  <script src="https://unpkg.com/html5-qrcode"></script>
+
+On student-dashboard.html only:
+  <!-- jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+  <!-- canvas-confetti -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+
+
+================================================================================
+                         SECTION 10 — BOOTSTRAP 5 OVERRIDES
+================================================================================
+
+Add to style.css AFTER Bootstrap import:
+
+:root {
+  --bs-primary: #008C7E;
+  --bs-primary-rgb: 0, 140, 126;
+  --bs-border-radius: 10px;
+  --bs-border-radius-lg: 16px;
+  --bs-border-radius-pill: 100px;
+  --bs-font-sans-serif: 'Poppins', sans-serif;
+}
+
+/* Cards */
+.card {
+  border: 1.5px solid #E2E8F0;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(0, 140, 126, 0.08);
+  transition: all 0.25s ease;
+}
+.card:hover {
+  box-shadow: 0 10px 40px rgba(0, 140, 126, 0.14);
+  transform: translateY(-3px);
+}
+
+/* Primary button */
+.btn-primary {
+  background: #008C7E;
+  border: none;
+  border-radius: 100px;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 600;
+  padding: 14px 28px;
+  box-shadow: 0 4px 14px rgba(0, 140, 126, 0.35);
+}
+.btn-primary:hover {
+  background: #006B60;
+  transform: scale(1.02);
+}
+
+/* Inputs */
+.form-control {
+  border: 1.5px solid #E2E8F0;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 16px;
+}
+.form-control:focus {
+  border-color: #008C7E;
+  box-shadow: 0 0 0 3px rgba(0, 140, 126, 0.12);
+}
+
+/* Hover bg tint (PRD locked — only on hover, not as page bg) */
+.hover-tint:hover { background: #F2FBF8; }
+
+/* Badges */
+.badge {
+  border-radius: 100px;
+  font-family: 'Poppins', sans-serif;
+  font-weight: 600;
+  padding: 5px 12px;
+}
+.badge-teal { background: #E6F4F1; color: #008C7E; }
+.badge-success { background: #A8D5C3; color: #1A6B52; }
+
+
+================================================================================
+                         SECTION 11 — DEPLOYMENT CHECKLIST
+================================================================================
+
+Pre-deploy:
+  [ ] Firebase config set in firebase-config.js (never commit real keys to GitHub)
+  [ ] EmailJS keys set in email.js
+  [ ] Firestore rules deployed: firebase deploy --only firestore:rules
+  [ ] Storage rules deployed: firebase deploy --only storage
+  [ ] All 7 Nano Banana Pro images placed in assets/images/ with correct filenames
+  [ ] Test full flow: register → email → QR → scan → mark complete → certificate
+  [ ] Test Firestore security: cross-user access blocked in browser console
+  [ ] Test QR scanner on Android Chrome (primary device target)
+  [ ] Test scanner on paper printout + phone screen + low light
+  [ ] Test all 9 testing checklist items (Section 7)
+  [ ] Confetti fires on certificate download
+  [ ] "Finding events near you…" shown on events page load
+  [ ] All buttons have emoji
+  [ ] All toasts use fun copy from Section 1.7
+  [ ] PDF generation fail shows fallback toast
+  [ ] No internet check before scanner start shows correct toast
+
+Deploy:
+  firebase deploy
+
+Post-deploy:
+  [ ] Verify https://YOUR_PROJECT.web.app loads
+  [ ] Confirmation email received on live URL (not localhost)
+  [ ] Firebase Hosting dashboard shows no errors
+  [ ] Monitor Firestore usage in Firebase console (free tier: 50K reads/day)
+
+
+================================================================================
+                         SECTION 12 — IMAGE GENERATION GUIDE (NANO BANANA PRO)
+================================================================================
+
+Generate all 7 images with TRANSPARENT BACKGROUNDS (PNG).
+Drop-shadow applied via CSS: filter: drop-shadow(0 16px 40px rgba(0,0,0,0.10))
+Hide decorative images on mobile (display:none at <576px) for performance.
+
+File 1: hero-students.png
+  Location : Landing hero, full-width bleed below CTA buttons
+  Prompt   : "Group of happy 3D cartoon college students in colorful outfits
+             holding phones and certificates, selfie-style angle looking up at
+             camera, warm vibrant colors, transparent background, Pixar style,
+             diverse group, energetic, fun, high quality"
+  Size     : 1200 × 600px
+
+File 2: how-it-works-student.png
+  Location : How It Works section, right side floating
+  Prompt   : "Single happy 3D cartoon college student holding a phone showing
+             a QR code, smiling, colorful casual outfit, transparent background,
+             Pixar style, side-angle"
+  Size     : 600 × 600px
+
+File 3: dashboard-student.png
+  Location : Student dashboard header top-right, floating
+  Prompt   : "3D cartoon female student at a desk with laptop showing a dashboard,
+             smiling, colorful outfit, transparent background, Pixar style"
+  Size     : 500 × 500px
+
+File 4: organizer-hero.png
+  Location : Organizer dashboard header top-right, floating
+  Prompt   : "3D cartoon male student holding clipboard pointing up, organizer
+             badge on chest, colorful outfit, transparent background, Pixar style"
+  Size     : 400 × 500px
+
+File 5: auth-students.png
+  Location : Left column of login + signup pages
+  Prompt   : "Group of 2-3 happy 3D cartoon students celebrating with certificates
+             and confetti, colorful outfits, transparent background, Pixar style"
+  Size     : 600 × 600px
+
+File 6: leaderboard-trophy.png
+  Location : Leaderboard page header, right side floating
+  Prompt   : "3D cartoon student on winner's podium holding gold trophy, huge smile,
+             confetti falling, colorful outfit, transparent background, Pixar style"
+  Size     : 400 × 500px
+
+File 7: empty-state.png
+  Location : Events page when search/filter returns no results
+  Prompt   : "3D cartoon student sitting on a floating cloud looking bored, holding
+             a calendar with no events, transparent background, Pixar style, funny"
+  Size     : 400 × 400px
+
+
+================================================================================
+                    END OF TRD — EventDesk v2.0 — FINAL BUILD REFERENCE
+================================================================================

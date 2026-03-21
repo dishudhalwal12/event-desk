@@ -1,0 +1,197 @@
+﻿(____)
+(____)
+(____)
+(____)
+
+
+A
+Synopsis Report
+On
+“EventDesk
+College Event Management Portal”
+For Partial Fulfilment of (____)
+(____)
+
+
+Submitted to
+(____)
+(____)
+(____)
+	Submitted by
+(____)
+(____)
+(____)
+	(____)
+________________
+
+
+TABLE OF CONTENTS
+S. No.
+	Topic
+	Page No.
+	1.
+	Introduction
+	3
+	2.
+	Why Was This Topic Chosen?
+	4
+	3.
+	Objectives and Scope
+	5
+	4.
+	Methodology
+	6
+	5.
+	Technology Stack
+	7
+	6.
+	Testing Technologies Used
+	8
+	7.
+	Limitations and Future Scope
+	9
+	8.
+	Team Work Distribution
+	10
+	9.
+	Conclusion
+	11
+	________________
+
+
+1. INTRODUCTION
+Events happen all the time in college. Hackathons, workshops, cultural fests, guest lectures. But here is the thing — most colleges still run these events the old way. Someone makes a Google Form. That link gets dumped into five different WhatsApp groups. Half the students miss it because who actually reads every message in a 300-person group?
+Then comes the event day. A volunteer stands at the door with a register. Names get called out one by one. It takes forever. We have seen this happen so many times.
+And the worst part? Certificates. After the event wraps up, organizers have to sit down, open Canva, type each name manually, export each certificate as a separate file, and then send them out. Some people get theirs in a week. Some wait a month. Some never get them at all because their name was spelled wrong or just missing from the list. We know students who attended events and still do not have proof of it.
+1.1 Problem Statement
+What Students Deal With:
+1. Event links get lost in WhatsApp. You miss one notification and you miss the whole registration window.
+2. There is no single page to see what events are coming up this week or this month.
+3. Once you register, there is no easy way to check which events you signed up for.
+4. Certificates take weeks. Sometimes you have to personally message the organizer and remind them.
+5. Popular events fill up fast. But there is no waitlist. If you are late by an hour, you are out.
+What Organizers Deal With:
+1. Google Forms work but they are messy. You end up with a spreadsheet that needs manual cleanup.
+2. Paper attendance is slow. Marking 60 people takes 15 to 20 minutes easily.
+3. Making certificates one by one in Canva is boring and takes hours.
+4. No dashboard to see how many people registered, how many showed up, or how the event did overall.
+5. If there is a cap of 50 seats, managing overflow is a headache.
+We built EventDesk to solve these problems. One platform. Students can find events, register in a few clicks, get attendance marked by scanning a QR code, and download certificates the same day. Organizers get a proper dashboard with filters for event categories, live registration counts, attendance tracking, and auto-generated certificates. We kept it simple because we did not want to build something nobody would use.
+________________
+
+
+2. WHY WAS THIS TOPIC CHOSEN?
+Honestly? We picked this because we were annoyed.
+One of us missed a coding workshop last semester. The registration link was shared at 11 PM in a group with 200 unread messages. By morning, the seats were full. Another teammate attended a photography event and never got the certificate. She messaged the organizer three times. Nothing. Eventually she just gave up.
+These were not one-off cases. Almost everyone we talked to had a similar story. Missed registrations. Late certificates. Confusing processes. It seemed like a problem worth fixing.
+2.1 What We Noticed Was Missing
+We looked at how events were handled in our college and a few others. Most places use Google Forms plus WhatsApp plus Excel plus Canva. Four different tools that do not talk to each other. Data gets copied and pasted between them. Mistakes happen. Names get misspelled. Attendance does not match registration. Nobody has time to cross-check everything. The whole thing is held together with tape and hope. We thought maybe a single platform that does all of this could save a lot of time and frustration.
+2.2 Features We Wanted to Add
+A few things felt non-negotiable to us. QR-based attendance so that checking in 60 people does not take half an hour. Automatic certificate generation so students do not wait for weeks. A waitlist system where you can see “48 out of 60 seats taken” and join a queue if it is full. An organizer dashboard that shows real numbers — how many registered, how many actually came, which event categories are popular. And category filters so students interested in only tech or only cultural events can find what they want quickly. These are not fancy ideas. They are basic things that should exist but mostly do not.
+2.3 What We Got Out of It
+None of us had built a full web app before. We had done small HTML pages and JavaScript exercises in class, but nothing with real users, real databases, and multiple features working together. This project made us learn Firebase from scratch. We figured out how to use libraries we had never heard of before, like jsPDF for PDFs and html5-qrcode for the scanner. We made a lot of mistakes along the way. But that is also how we learned the most.
+________________
+
+
+3. OBJECTIVES AND SCOPE
+Here is what we wanted the app to actually do:
+1. Build a page where students can see all upcoming events in one place. Add filters so people can sort by category — tech, cultural, sports, workshops, whatever.
+2. Let students register by filling a short form. Store their details in the database and send a confirmation email with a QR code they can show at the event.
+3. Give organizers a QR scanner so they can mark attendance by just pointing their phone at the student’s screen. No more calling out names.
+4. Generate PDF certificates automatically after the event ends. Students should be able to download them from their dashboard within the same day.
+5. Create a dashboard for organizers showing live registration counts, attendance numbers, and basic stats. Let them filter by event and see trends.
+6. Add a waitlist feature. Show how many seats are left, like “12 spots remaining out of 60.” If the event is full, let students join a waitlist and get notified if someone drops out.
+7. Build a leaderboard for students who attend multiple events. Give them some recognition. Maybe it motivates others to participate more.
+3.1 What the System Covers
+EventDesk is meant for one college at a time. It handles the full cycle: creating an event, collecting registrations, marking attendance, and handing out certificates. Two types of users can log in — students and organizers. Students browse, register, and collect certificates. Organizers create events, manage who shows up, and track performance. We also added category-based filtering because not everyone wants to scroll through 30 events to find the one coding contest they care about.
+We left a few things out on purpose. The system does not handle payments. If an event has a registration fee, you still need Razorpay or Paytm separately. It also does not support multiple colleges in one deployment. We focused on getting the core features right first. If we had tried to do everything at once, we probably would have finished nothing.
+________________
+
+
+4. METHODOLOGY
+We did not follow any textbook methodology. No Agile sprints. No Scrum boards. What we did was simple: split the work into four chunks and finish each chunk before starting the next. We also used Claude AI and GitHub Copilot to help write code. Those tools saved us a lot of time, especially when we got stuck on something we had never done before.
+4.1 Figuring Out What to Build
+We started by writing down every annoying thing we had experienced with college events. Then we talked to a few seniors who had organized fests in the past. They confirmed most of our list and added a few more pain points we had not thought about, like the need for participant caps and waitlists. We also checked how other colleges ran their events by looking at their Instagram pages and posters. Not very scientific, but it gave us a sense of what was common and what was missing.
+4.2 Planning the Database and Pages
+Once we knew what we were building, we sketched the database on paper. Four main collections: users, events, registrations, and attendance. Each event gets a unique ID. Registrations link users to events. Attendance links registrations to check-in timestamps. We also drew rough wireframes for the pages — home page with event cards, detail page with a register button, student dashboard, organizer dashboard. Nothing fancy. Just enough to know what goes where.
+4.3 Writing the Code
+Frontend came first. We built all the pages in HTML and styled them with Bootstrap. Once they looked okay, we connected them to Firebase. Authentication was the first backend piece. Then event creation, then registration. The QR scanner took longer than expected. Getting it to work on different phone cameras was frustrating. Some phones scanned instantly. Others took five seconds. We had to tweak the library settings a bunch of times. Certificate generation came last. We went through probably seven or eight versions of the PDF template before landing on one that looked decent.
+4.4 Testing and Putting It Online
+We tested by creating fake events and registering with multiple accounts. Tried to break things on purpose. Found a few bugs. Fixed them. Then we asked two classmates who were not on the team to try the app. They found stuff we had missed — one button label was confusing, the loading spinner had no text, the scanner gave no feedback when a scan failed. We fixed those before going live. Deployed the final version on Firebase Hosting. Used GitHub for version control with separate branches for each feature.
+________________
+
+
+5. TECHNOLOGY STACK
+We picked tools based on three criteria: free or almost free, good documentation, and simple enough that we could actually figure them out. Firebase checked all three boxes for backend stuff. For the frontend, we stuck with what we already knew from class.
+5.1 Frontend
+* HTML5 — Basic structure for all pages. Nothing fancy, just clean markup.
+* CSS3 — Styling. We wrote some custom CSS but leaned on Bootstrap for most of it.
+* Bootstrap 5 — Gave us a grid system, cards, modals, and navbars without having to build them from scratch.
+* JavaScript — Handled all the interactive bits. Form validation, API calls, updating the page without reloading.
+5.2 Backend and Database
+* Firebase Authentication — Handles sign-up, login, and sessions. We used email and password auth. Nothing complicated.
+* Firebase Firestore — NoSQL database. We store users, events, registrations, and attendance here. Queries are fast and the free tier is generous.
+* Firebase Storage — For event posters. Organizers upload images and they get stored here.
+* Firebase Hosting — Where the live app sits. Free SSL, decent speed, easy deploy.
+5.3 Extra Libraries We Used
+* jsPDF — Generates PDF certificates in the browser. We build the layout and it spits out a downloadable file.
+* html5-qrcode — Opens the phone camera and reads QR codes. We use this for the attendance scanner.
+* EmailJS — Sends confirmation emails without needing a backend server. You set up a template and it handles the rest.
+5.4 Version Control and Deploy
+* Git and GitHub — Everyone worked on their own branch. Merged to main after testing.
+* Firebase CLI — Command line tool to push code to Firebase Hosting.
+________________
+
+
+6. TESTING TECHNOLOGIES USED
+We did not use any automated testing tools. No Jest, no Selenium, nothing like that. Everything was tested by hand. We know that is not ideal for a real production app, but for a college project with a tight deadline, manual testing was the only realistic option. We made sure to check every feature multiple times before calling it done.
+6.1 Functional Testing
+We tested each feature on its own first. For registration, we tried submitting empty forms, invalid emails, phone numbers with letters in them. Made sure the validation caught everything. For the QR scanner, we tested codes printed on paper, codes shown on phone screens, codes in low light and bright light. Some edge cases surprised us. For certificates, we checked that the student name, event name, and date showed up correctly. We kept a shared Google Doc with a checklist and ticked things off as we tested them.
+6.2 Integration Testing
+Once individual features worked, we tested them together. The tricky part was data flow. Registration creates a record. Attendance updates that record. Certificate pulls from both. We found a bug where attendance was not linking to the right registration because of a typo in one field name. Took us almost a full day to figure that out. We also tested the email flow end-to-end to make sure the QR code in the email matched what was stored in the database.
+6.3 Usability Testing
+We grabbed two classmates who had nothing to do with the project and asked them to try it. Gave them a simple task: find an event, register, check if registration worked. We watched without saying anything. They found issues. One person did not realize she had to scroll to see the register button. Another thought the app was frozen because the loading spinner had no text. Small things we had missed because we had been staring at the same screens for weeks. We fixed both before deploying.
+6.4 Security Testing
+We wrote Firestore rules so users can only access their own data. Organizers can edit their own events but not touch anyone else’s. We tested this by opening the browser console and trying to read other people’s records. It blocked us, which was the point. We also made sure invalid QR codes get rejected. Firebase handles password security, so we did not have to worry about hashing or tokens.
+________________
+
+
+7. LIMITATIONS AND FUTURE SCOPE
+7.1 What Does Not Work Yet
+We are not going to pretend the app is perfect. Here is what it cannot do right now:
+* The scanner needs internet. If the Wi-Fi drops mid-event, attendance does not save and you have to scan again once it reconnects.
+* No payment support. Paid events still need a separate system like Razorpay or Paytm.
+* The organizer dashboard is basic. You cannot export data to Excel or filter by custom date ranges yet.
+* The waitlist sends an email when a spot opens, but it does not auto-promote the first person in line. That is still manual.
+* Certificate templates are fixed. Organizers cannot upload their own designs in this version.
+7.2 What We Would Add Next
+If we keep working on this after submission, here is the list:
+* Offline mode for attendance. Save scans locally and sync when connection comes back.
+* Razorpay or Paytm integration so organizers can charge for workshops and ticketed events.
+* A mobile app with push notifications. Students would get alerts when new events are posted or when a waitlist spot opens.
+* A drag-and-drop certificate builder so organizers can design their own templates.
+* Multi-college support with separate admin panels for each institution.
+________________
+
+
+8. TEAM WORK DISTRIBUTION
+Three of us worked on this. We split tasks based on what each person was more comfortable with. The split was not strict. When someone got stuck, the others jumped in to help. That happened a lot during the last two weeks when everything had to come together.
+8.1 (____) — Frontend and UI
+(____) handled all the visual stuff. They built the HTML pages, wrote the CSS, set up Bootstrap components. The event listing page with the card grid was their work. So was the student dashboard and the filters for event categories. One thing that gave them trouble was the QR scanner modal. It looked fine on laptops but broke on phones. They rewrote that CSS three times before it finally worked on all screen sizes. Also added the countdown timer on event pages, which was a nice touch.
+8.2 (____) — Backend and Database
+(____) did the Firebase setup. Created the project, designed the database collections, wrote all the Firestore queries. Login, signup, password reset — that was all them. They also connected EmailJS for sending confirmation emails. The hardest part was writing security rules. Firestore rules have a weird syntax and the error messages are not helpful. It took them three or four days of trial and error to get the permissions right. But once it worked, it worked.
+8.3 (____) — Features and Testing
+(____) built the QR code features using html5-qrcode. Also did the certificate generation with jsPDF. Getting the PDF layout to look like the design was annoying because jsPDF does not support all CSS. They had to position everything manually with coordinates. Took longer than expected. They also handled most of the testing, wrote down all the bugs, and helped with documentation. The synopsis draft you are reading went through their hands too.
+8.4 What We Did Together
+Requirement gathering was a group effort. All three of us sat together and listed out features. Same with database design — we drew it out on a whiteboard. During the final integration phase, we had calls every evening to fix bugs and make sure everything connected. Merge conflicts on GitHub were a shared headache. We also split the presentation slides and rehearsed the demo together.
+________________
+
+
+9. CONCLUSION
+The problem was straightforward. College events are managed with too many disconnected tools and too much manual work. Students miss registrations. Certificates take forever. Organizers waste time on admin instead of focusing on the event itself.
+EventDesk is what we built to fix that. One platform where students can discover events, register, get their attendance marked with a QR scan, and download certificates the same day. Organizers get a dashboard with registration counts, attendance stats, and category filters. We added features like participant limits with a live count, a waitlist system, and a leaderboard for frequent attendees. Nothing revolutionary. Just things that should exist but usually do not.
+Is it perfect? No. The offline mode is missing. The analytics are basic. Certificate templates cannot be customized. There are things we would do differently if we started over. But for three people who had never done full-stack development before, we are honestly a bit surprised it all came together. We learned Firebase, worked with third-party libraries, dealt with real authentication, and shipped something that actually runs.
+We did not try to make something impressive on paper. We tried to make something that works. We think we pulled it off.
+
+
+* * * End of Synopsis * * *

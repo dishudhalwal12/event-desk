@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EventDesk | Student Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/components.css">
+  <script type="module" src="js/firebase-config.js"></script>
+</head>
+<body data-page="student-dashboard" class="dashboard-page dashboard-page-student">
+  <nav class="navbar navbar-expand-lg sticky-top eventdesk-navbar">
+    <div class="container">
+      <a class="navbar-brand eventdesk-logo" href="index.html">EventDesk</a>
+      <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#studentNav" aria-controls="studentNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="studentNav">
+        <ul class="navbar-nav ms-auto gap-lg-3 align-items-lg-center">
+          <li class="nav-item"><a class="nav-link" href="events.html">Events</a></li>
+          <li class="nav-item"><a class="nav-link" href="leaderboard.html">Leaderboard</a></li>
+          <li class="nav-item"><button id="studentSignOutButton" class="btn btn-outline-primary">Sign Out</button></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <main class="section-space pt-4 app-dashboard-page">
+    <div class="container">
+      <div class="dashboard-shell student-shell">
+        <section class="dashboard-shell-hero student-hero-shell">
+          <div class="dashboard-hero-glow"></div>
+          <div class="dashboard-hero-grid">
+            <div class="dashboard-hero-copy">
+              <span class="dashboard-kicker">
+                <span class="kicker-dot"></span>
+                Student Dashboard
+              </span>
+              <h1 id="studentGreeting" class="dashboard-title">Hey there!</h1>
+              <p class="dashboard-subtitle dashboard-subtitle-large">Track registrations, queue positions, attendance, and certificate-ready moments from one bright, focused workspace.</p>
+              <div class="dashboard-hero-actions">
+                <a href="events.html" class="btn btn-primary">Explore Events</a>
+                <a href="leaderboard.html" class="btn btn-outline-primary">View Leaderboard</a>
+              </div>
+              <div class="dashboard-hero-inline-cards">
+                <div class="hero-inline-card hero-inline-card-primary">
+                  <span class="hero-inline-label">Live pulse</span>
+                  <strong id="studentHeroBadge">Live sync with campus events</strong>
+                </div>
+                <div class="hero-inline-card">
+                  <span class="hero-inline-label">Focus</span>
+                  <strong>Seats, scans, and cert unlocks update in real time.</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="dashboard-hero-visual student-hero-visual">
+              <div class="student-hero-stage">
+                <div class="student-stage-card stage-card-main">
+                  <div class="stage-card-dot-grid"></div>
+                  <div class="stage-card-copy">
+                    <span>Upcoming momentum</span>
+                    <strong>Stay ahead of your next campus moment</strong>
+                    <p>Queue, QR, attendance, and certificates all flow through this board.</p>
+                  </div>
+                  <div class="student-hero-bars" aria-hidden="true">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                  </div>
+                </div>
+                <div class="student-stage-card stage-card-float">
+                  <span>Dashboard flow</span>
+                  <strong>Register</strong>
+                  <strong>Attend</strong>
+                  <strong>Unlock</strong>
+                </div>
+                <svg class="student-hero-orbit" viewBox="0 0 420 320" aria-hidden="true">
+                  <defs>
+                    <linearGradient id="studentWave" x1="0%" x2="100%" y1="0%" y2="100%">
+                      <stop offset="0%" stop-color="#4C7CFF"></stop>
+                      <stop offset="100%" stop-color="#79A8FF"></stop>
+                    </linearGradient>
+                    <linearGradient id="studentWaveSoft" x1="0%" x2="100%" y1="0%" y2="100%">
+                      <stop offset="0%" stop-color="#FF7B57"></stop>
+                      <stop offset="100%" stop-color="#FFB36B"></stop>
+                    </linearGradient>
+                  </defs>
+                  <circle cx="300" cy="88" r="78" fill="rgba(76,124,255,0.12)"></circle>
+                  <circle cx="120" cy="248" r="54" fill="rgba(255,123,87,0.18)"></circle>
+                  <path d="M48 236C102 190 136 210 174 176C218 137 242 120 292 131C330 139 356 171 374 182" fill="none" stroke="url(#studentWave)" stroke-width="12" stroke-linecap="round"></path>
+                  <path d="M82 86C136 58 194 60 248 99C289 129 321 137 358 127" fill="none" stroke="url(#studentWaveSoft)" stroke-width="10" stroke-linecap="round" stroke-dasharray="4 20"></path>
+                  <circle cx="172" cy="178" r="10" fill="#4C7CFF"></circle>
+                  <circle cx="286" cy="132" r="12" fill="#FF7B57"></circle>
+                  <circle cx="356" cy="127" r="8" fill="#111827"></circle>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="dashboard-stat-grid student-stat-grid">
+          <article class="card stat-card dashboard-stat-card stat-card-blue">
+            <div class="card-body">
+              <div class="stat-icon-wrap">
+                <span class="stat-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <rect x="4" y="5" width="16" height="15" rx="3"></rect>
+                    <path d="M8 3V7"></path>
+                    <path d="M16 3V7"></path>
+                    <path d="M4 10H20"></path>
+                  </svg>
+                </span>
+                <span class="stat-trace">Journey</span>
+              </div>
+              <strong id="statRegistered">0</strong>
+              <small>Events Registered</small>
+            </div>
+          </article>
+          <article class="card stat-card dashboard-stat-card stat-card-green">
+            <div class="card-body">
+              <div class="stat-icon-wrap">
+                <span class="stat-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M5 12.5L9.5 17L19 7.5"></path>
+                  </svg>
+                </span>
+                <span class="stat-trace">Attendance</span>
+              </div>
+              <strong id="statAttended">0</strong>
+              <small>Events Attended</small>
+            </div>
+          </article>
+          <article class="card stat-card dashboard-stat-card stat-card-amber">
+            <div class="card-body">
+              <div class="stat-icon-wrap">
+                <span class="stat-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M8 3.5H16"></path>
+                    <path d="M8 6.5H16"></path>
+                    <rect x="5" y="4" width="14" height="16" rx="3"></rect>
+                    <path d="M8.5 11H15.5"></path>
+                    <path d="M8.5 15H13"></path>
+                  </svg>
+                </span>
+                <span class="stat-trace">Rewards</span>
+              </div>
+              <strong id="statCertificates">0</strong>
+              <small>Certs Downloaded</small>
+            </div>
+          </article>
+          <article class="card stat-card dashboard-stat-card stat-card-rose">
+            <div class="card-body">
+              <div class="stat-icon-wrap">
+                <span class="stat-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path d="M12 4L14.4 8.7L19.5 9.4L15.8 13L16.7 18.1L12 15.7L7.3 18.1L8.2 13L4.5 9.4L9.6 8.7L12 4Z"></path>
+                  </svg>
+                </span>
+                <span class="stat-trace">Leaderboard</span>
+              </div>
+              <strong id="statRank">--</strong>
+              <small>Campus Rank</small>
+            </div>
+          </article>
+        </section>
+
+        <section class="dashboard-workspace">
+          <div class="row g-4">
+            <div class="col-xl-8">
+              <div class="workspace-panel student-workspace-panel">
+                <div class="workspace-panel-head">
+                  <div>
+                    <span class="section-kicker">Your Event Journey</span>
+                    <h2>Everything you joined, attended, or unlocked.</h2>
+                    <p>These cards update in real time when organizers create events, confirm seats, scan attendance, or complete an event.</p>
+                  </div>
+                  <div class="tab-pills" id="studentTabs">
+                    <button class="btn btn-pill active" data-tab="all">All</button>
+                    <button class="btn btn-pill" data-tab="upcoming">Upcoming</button>
+                    <button class="btn btn-pill" data-tab="attended">Attended</button>
+                    <button class="btn btn-pill" data-tab="certificates">Certificates</button>
+                  </div>
+                </div>
+
+                <div id="studentDashboardLoader" class="mt-4"></div>
+                <div id="studentEventsList" class="dashboard-event-stack mt-4"></div>
+              </div>
+            </div>
+
+            <div class="col-xl-4">
+              <div class="dashboard-side-stack">
+                <section class="insight-card profile-insight-card">
+                  <div class="profile-top">
+                    <div id="studentProfileAvatar" class="profile-avatar">ED</div>
+                    <div>
+                      <strong id="studentProfileName">EventDesk Student</strong>
+                      <span id="studentProfileEmail">student@campus.edu</span>
+                    </div>
+                  </div>
+                  <div class="profile-meta-grid">
+                    <div>
+                      <span>Role</span>
+                      <strong>Student</strong>
+                    </div>
+                    <div>
+                      <span>Phone</span>
+                      <strong id="studentProfilePhone">Add your phone</strong>
+                    </div>
+                  </div>
+                </section>
+
+                <section id="studentSpotlightCard" class="insight-card spotlight-card student-spotlight-card">
+                  <div class="insight-card-head">
+                    <h3>Next Up</h3>
+                    <span id="studentSpotlightTag" class="badge badge-category">No upcoming event</span>
+                  </div>
+                  <h4 id="studentSpotlightTitle">Register for an event to see your spotlight here.</h4>
+                  <p id="studentSpotlightCopy">Your soonest registered event appears here with timing, venue, and a quick path back to the full details.</p>
+                  <div class="mini-stat-row">
+                    <div>
+                      <span>Date</span>
+                      <strong id="studentSpotlightDate">Waiting for your next plan</strong>
+                    </div>
+                    <div>
+                      <span>Venue</span>
+                      <strong id="studentSpotlightVenue">Campus-wide</strong>
+                    </div>
+                  </div>
+                  <a id="studentSpotlightLink" href="events.html" class="btn btn-outline-primary w-100 mt-3">Browse Events</a>
+                </section>
+
+                <section class="insight-card">
+                  <div class="insight-card-head">
+                    <h3>Queue Watch</h3>
+                    <span id="studentWaitlistCount" class="insight-pill">0 waiting</span>
+                  </div>
+                  <div id="studentWaitlistPanel" class="stack-list empty">
+                    <p class="empty-inline-copy mb-0">No waitlists right now. If an event fills up, your exact queue position will show here.</p>
+                  </div>
+                </section>
+
+                <section class="insight-card">
+                  <div class="insight-card-head">
+                    <h3>Certificate Shelf</h3>
+                    <span id="studentCertificateSummary" class="insight-pill">0 ready</span>
+                  </div>
+                  <div id="studentCertificatesPanel" class="stack-list empty">
+                    <p class="empty-inline-copy mb-0">Certificate-ready events show up here the moment the organizer marks them completed.</p>
+                  </div>
+                </section>
+
+                <section class="insight-card">
+                  <div class="insight-card-head">
+                    <h3>Campus Picks</h3>
+                    <a href="events.html">See all</a>
+                  </div>
+                  <div id="studentRecommendationsList" class="stack-list empty">
+                    <p class="empty-inline-copy mb-0">Fresh events from campus will appear here as organizers publish them.</p>
+                  </div>
+                </section>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <template id="studentEventCardTemplate">
+    <article class="card student-journey-card">
+      <div class="student-journey-media">
+        <div class="student-poster-frame">
+          <img src="" alt="Event poster" class="student-event-poster d-none">
+          <div class="event-poster-fallback student-poster-fallback">
+            <span class="event-poster-fallback-kicker">Campus pulse</span>
+            <strong class="event-poster-fallback-title">EventDesk</strong>
+            <span class="event-poster-fallback-meta">Fresh experiences, no repeated stock art.</span>
+          </div>
+        </div>
+        <span class="badge badge-category student-event-category">Tech</span>
+      </div>
+      <div class="student-event-body">
+        <div class="student-event-head">
+          <div>
+            <p class="student-event-eyebrow">Live registration</p>
+            <h3 class="dashboard-event-title mb-1"></h3>
+            <p class="dashboard-event-meta mb-0"></p>
+          </div>
+          <span class="status-pill">Upcoming</span>
+        </div>
+        <p class="student-event-summary mb-0"></p>
+        <div class="student-event-grid">
+          <div>
+            <span>Date</span>
+            <strong class="student-event-date"></strong>
+          </div>
+          <div>
+            <span>Time</span>
+            <strong class="student-event-time"></strong>
+          </div>
+          <div>
+            <span>Venue</span>
+            <strong class="student-event-venue"></strong>
+          </div>
+        </div>
+        <div class="student-card-footer">
+          <div class="student-card-track">
+            <span class="student-card-track-label">Flow</span>
+            <strong>Register -> Attend -> Unlock</strong>
+          </div>
+          <div class="action-area student-event-actions"></div>
+        </div>
+      </div>
+    </article>
+  </template>
+
+  <div class="modal fade" id="qrModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content modal-card student-modal-card">
+        <div class="modal-body p-4 text-center">
+          <h2 id="qrModalTitle" class="modal-title-custom mb-3">Your Event QR</h2>
+          <div id="studentQrCode" class="qr-code-box mx-auto mb-3"></div>
+          <h3 id="qrEventName" class="mb-2">Event Name</h3>
+          <p class="text-muted mb-4">Show this at the event entrance.</p>
+          <button id="saveQrButton" class="btn btn-outline-primary w-100">Save QR</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+  <script type="module">
+    import { initStudentDashboard } from './js/registration.js';
+
+    initStudentDashboard();
+  </script>
+</body>
+</html>

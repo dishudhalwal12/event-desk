@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EventDesk | Discover Events</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/components.css">
+  <script type="module" src="js/firebase-config.js"></script>
+</head>
+<body data-page="home">
+  <main>
+    <section class="hero-section">
+      <div class="container">
+        <div class="hero-window">
+          <div class="hero-window-topbar">
+            <a class="hero-window-brand" href="index.html">EventDesk</a>
+            <div class="hero-window-nav">
+              <a href="#features">Features</a>
+              <a href="events.html">Events</a>
+              <a href="leaderboard.html">Leaderboard</a>
+              <a href="login.html">Login</a>
+            </div>
+            <a href="signup.html" class="btn btn-primary hero-window-cta">Get Started 🙌</a>
+          </div>
+          <div class="hero-window-content text-center">
+            <h1 class="hero-title fade-up delay-1">Discover Events,<br>Build Your College Story.</h1>
+            <div class="d-flex flex-column flex-sm-row justify-content-center gap-3 fade-up delay-3 hero-cta-row">
+              <a href="events.html" class="btn btn-primary btn-lg hero-main-cta">Explore Events 👀</a>
+              <a href="#how-it-works" class="btn btn-outline-primary btn-lg hero-secondary-cta">How It Works ✨</a>
+            </div>
+          </div>
+          <div class="hero-window-image-wrap fade-scale delay-4">
+            <video class="hero-window-video" autoplay muted loop playsinline preload="auto" poster="assets/images/hero.png" aria-label="Students celebrating events">
+              <source src="assets/media/herov3.mp4" type="video/mp4">
+            </video>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="stats-strip">
+      <div class="container">
+        <div class="row text-center g-4">
+          <div class="col-md-4 stats-item">
+            <h2>500+</h2>
+            <p>Events Hosted</p>
+          </div>
+          <div class="col-md-4 stats-item stats-divider">
+            <h2>10,000+</h2>
+            <p>Registrations</p>
+          </div>
+          <div class="col-md-4 stats-item">
+            <h2>Same Day</h2>
+            <p>Certificate Delivery</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-space features-section" id="features">
+      <div class="container">
+        <div class="features-stage">
+          <div class="features-stage-glow features-stage-glow-a"></div>
+          <div class="features-stage-glow features-stage-glow-b"></div>
+
+          <div class="features-stage-header feature-reveal" style="--reveal-delay: 0ms;">
+            <span class="section-kicker">Features</span>
+            <h2>Everything your college events need.</h2>
+            <p>From the first click to the final certificate, EventDesk turns campus event management into one clear, beautiful system that feels light for students and sharp for organizers.</p>
+          </div>
+
+          <div class="features-bento">
+            <article class="feature-glass feature-glass-lead feature-card-discover feature-reveal" style="--reveal-delay: 40ms;">
+              <div class="feature-glass-topline">
+                <span class="feature-glass-chip">Discover</span>
+                <span class="feature-glass-number">01</span>
+              </div>
+              <h3>Find Every Event</h3>
+              <p>See what is live, what fits your vibe, and what is actually worth opening without digging through posters, chats, or random links.</p>
+              <div class="feature-glass-art feature-art-report" aria-hidden="true"></div>
+              <div class="feature-glass-foot">Searchable. Filterable. Effortless to browse.</div>
+            </article>
+
+            <article class="feature-glass feature-glass-dark feature-card-register feature-reveal" style="--reveal-delay: 100ms;">
+              <div class="feature-glass-topline">
+                <span class="feature-glass-chip">Register</span>
+                <span class="feature-glass-number">02</span>
+              </div>
+              <h3>Register in Seconds</h3>
+              <p>Move from interest to confirmed spot in a few fast taps with seat logic, clean forms, and QR delivery already built in.</p>
+              <div class="feature-glass-art feature-art-orb" aria-hidden="true"></div>
+              <div class="feature-glass-foot">Less friction. Better turnout.</div>
+            </article>
+
+            <article class="feature-glass feature-card-scan feature-reveal" style="--reveal-delay: 60ms;">
+              <div class="feature-glass-topline">
+                <span class="feature-glass-chip">Entry</span>
+                <span class="feature-glass-number">03</span>
+              </div>
+              <h3>Scan &amp; You&apos;re In</h3>
+              <p>Attendance moves quickly at the gate, even when queues are busy and organizers need speed.</p>
+              <div class="feature-glass-art feature-art-rings" aria-hidden="true"></div>
+              <div class="feature-glass-foot">Quick check-in without the mess.</div>
+            </article>
+
+            <article class="feature-glass feature-card-certs feature-reveal" style="--reveal-delay: 120ms;">
+              <div class="feature-glass-topline">
+                <span class="feature-glass-chip">Reward</span>
+                <span class="feature-glass-number">04</span>
+              </div>
+              <h3>Certs, Same Day</h3>
+              <p>Students leave with proof, momentum, and something polished enough to keep.</p>
+              <div class="feature-glass-art feature-art-certificate" aria-hidden="true"></div>
+              <div class="feature-glass-foot">A smooth finish after every event.</div>
+            </article>
+
+            <article class="feature-glass feature-card-waitlist feature-reveal" style="--reveal-delay: 180ms;">
+              <div class="feature-glass-topline">
+                <span class="feature-glass-chip">Queue</span>
+                <span class="feature-glass-number">05</span>
+              </div>
+              <h3>Smart Waitlist</h3>
+              <p>Full events still feel fair and visible, with clear positions and clean promotion flow.</p>
+              <div class="feature-glass-art feature-art-queue" aria-hidden="true"></div>
+              <div class="feature-glass-foot">No guessing where you stand.</div>
+            </article>
+
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-space how-it-works" id="how-it-works">
+      <div class="container">
+        <div class="how-it-works-shell">
+          <div class="how-it-works-top">
+            <div class="section-heading how-it-works-heading">
+              <span class="section-kicker">How it works</span>
+              <h2>From &quot;what&apos;s happening?&quot; to &quot;certificate downloaded.&quot;</h2>
+              <p>EventDesk turns the messy campus-event journey into three clean steps, so students move from discovery to proof without confusion, delays, or awkward follow-ups.</p>
+            </div>
+            <div class="how-it-works-route" aria-hidden="true">
+              <span>discover</span>
+              <span>register</span>
+              <span>scan in</span>
+              <span>get certificate</span>
+            </div>
+          </div>
+
+          <div class="how-steps-grid">
+            <article class="how-step-card">
+              <div class="how-step-topline">
+                <span class="how-step-index">Step 1</span>
+                <span class="how-step-mini">Explore</span>
+              </div>
+              <h3>Find an event worth showing up for</h3>
+              <div class="how-step-tags">
+                <span>Clubs</span>
+                <span>Workshops</span>
+                <span>Fests</span>
+              </div>
+              <div class="how-step-visual how-step-visual-discover" aria-hidden="true">
+                <div class="hiw-search-bar">
+                  <span class="hiw-search-icon"></span>
+                  <span class="hiw-search-line"></span>
+                </div>
+                <div class="hiw-discover-stack">
+                  <div class="hiw-discover-card hiw-discover-card-main"></div>
+                  <div class="hiw-discover-card hiw-discover-card-side"></div>
+                </div>
+                <span class="hiw-floating-pill">Live now</span>
+              </div>
+              <p>Browse upcoming events with clear details, smart filters, and enough context to decide in a few quick seconds.</p>
+            </article>
+
+            <article class="how-step-card">
+              <div class="how-step-topline">
+                <span class="how-step-index">Step 2</span>
+                <span class="how-step-mini">Confirm</span>
+              </div>
+              <h3>Register once and get your QR instantly</h3>
+              <div class="how-step-tags">
+                <span>Seats locked</span>
+                <span>QR ready</span>
+                <span>Email sent</span>
+              </div>
+              <div class="how-step-visual how-step-visual-register" aria-hidden="true">
+                <div class="hiw-ticket-card">
+                  <span class="hiw-ticket-eyebrow"></span>
+                  <span class="hiw-ticket-title"></span>
+                  <span class="hiw-ticket-copy"></span>
+                  <span class="hiw-ticket-copy short"></span>
+                  <div class="hiw-ticket-qr"></div>
+                </div>
+                <span class="hiw-status-pill hiw-status-pill-top">Seat confirmed</span>
+                <span class="hiw-status-pill hiw-status-pill-bottom">Inbox delivered</span>
+              </div>
+              <p>No messy screenshots or repeated forms. Your pass is generated fast and delivered exactly where you expect it.</p>
+            </article>
+
+            <article class="how-step-card">
+              <div class="how-step-topline">
+                <span class="how-step-index">Step 3</span>
+                <span class="how-step-mini">Show up</span>
+              </div>
+              <h3>Scan in smoothly and leave with proof</h3>
+              <div class="how-step-tags">
+                <span>Attendance</span>
+                <span>Dashboard</span>
+                <span>Certificate</span>
+              </div>
+              <div class="how-step-visual how-step-visual-proof" aria-hidden="true">
+                <div class="hiw-proof-sheet">
+                  <span class="hiw-proof-line"></span>
+                  <span class="hiw-proof-line mid"></span>
+                  <span class="hiw-proof-line short"></span>
+                  <span class="hiw-proof-seal"></span>
+                </div>
+                <div class="hiw-phone-card">
+                  <span class="hiw-phone-check"></span>
+                </div>
+                <span class="hiw-proof-badge">Certified</span>
+              </div>
+              <p>Quick check-in updates attendance in real time, and certificates stay ready in the dashboard when the event wraps.</p>
+            </article>
+          </div>
+
+          <div class="how-it-works-footer">
+            <div class="how-it-works-footer-line" aria-hidden="true"></div>
+            <p>Ready to make campus events feel this smooth?</p>
+            <a href="signup.html" class="btn btn-primary">Get Started 🙌</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section-space leaderboard-home">
+      <div class="container">
+        <div class="leaderboard-home-shell">
+          <div class="leaderboard-home-top">
+            <div class="section-heading leaderboard-home-heading">
+              <span class="section-kicker">Campus leaderboard</span>
+              <h2>The students creating the strongest event streaks.</h2>
+              <p>Momentum matters on campus. This snapshot highlights who keeps showing up, building consistency, and making the most out of every registration.</p>
+            </div>
+            <div class="leaderboard-home-signal">
+              <span class="leaderboard-home-signal-label">Live snapshot</span>
+              <strong>Updated from attendance activity</strong>
+              <p>Registrations are one thing. Real check-ins are what move this board.</p>
+            </div>
+          </div>
+
+          <div class="leaderboard-home-grid">
+            <div class="leaderboard-home-board">
+              <div class="leaderboard-home-board-head">
+                <div>
+                  <span class="leaderboard-home-board-kicker">This month</span>
+                  <h3>Top attendees</h3>
+                </div>
+                <a href="leaderboard.html" class="inline-link leaderboard-home-link">See Full Leaderboard →</a>
+              </div>
+
+              <div class="leaderboard-preview-card">
+                <div class="table-responsive">
+                  <table class="table align-middle mb-0 leaderboard-preview-table">
+                    <thead>
+                      <tr>
+                        <th>Rank</th>
+                        <th>Student</th>
+                        <th>Momentum</th>
+                      </tr>
+                    </thead>
+                    <tbody id="leaderboard-preview-body">
+                      <tr>
+                        <td><span class="leaderboard-rank-badge is-top">01</span></td>
+                        <td>
+                          <div class="leaderboard-person">
+                            <span class="leaderboard-person-name">Aarav Patel</span>
+                            <span class="leaderboard-person-meta">Consistent attendance streak</span>
+                          </div>
+                        </td>
+                        <td>
+                          <div class="leaderboard-count-wrap">
+                            <strong>12</strong>
+                            <span>events attended</span>
+                            <span class="leaderboard-score-chip">Pro</span>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td><span class="leaderboard-rank-badge is-top">02</span></td>
+                        <td>
+                          <div class="leaderboard-person">
+                            <span class="leaderboard-person-name">Sneha Rao</span>
+                            <span class="leaderboard-person-meta">Shows up across formats</span>
+                          </div>
+                        </td>
+                        <td>
+                          <div class="leaderboard-count-wrap">
+                            <strong>10</strong>
+                            <span>events attended</span>
+                            <span class="leaderboard-score-chip">Active</span>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td><span class="leaderboard-rank-badge is-top">03</span></td>
+                        <td>
+                          <div class="leaderboard-person">
+                            <span class="leaderboard-person-name">Reyansh Kapoor</span>
+                            <span class="leaderboard-person-meta">Strong monthly pace</span>
+                          </div>
+                        </td>
+                        <td>
+                          <div class="leaderboard-count-wrap">
+                            <strong>9</strong>
+                            <span>events attended</span>
+                            <span class="leaderboard-score-chip">Active</span>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td><span class="leaderboard-rank-badge">04</span></td>
+                        <td>
+                          <div class="leaderboard-person">
+                            <span class="leaderboard-person-name">Isha Nair</span>
+                            <span class="leaderboard-person-meta">Climbing week by week</span>
+                          </div>
+                        </td>
+                        <td>
+                          <div class="leaderboard-count-wrap">
+                            <strong>8</strong>
+                            <span>events attended</span>
+                            <span class="leaderboard-score-chip">Active</span>
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td><span class="leaderboard-rank-badge">05</span></td>
+                        <td>
+                          <div class="leaderboard-person">
+                            <span class="leaderboard-person-name">Vivaan Mehta</span>
+                            <span class="leaderboard-person-meta">Holding a steady rhythm</span>
+                          </div>
+                        </td>
+                        <td>
+                          <div class="leaderboard-count-wrap">
+                            <strong>7</strong>
+                            <span>events attended</span>
+                            <span class="leaderboard-score-chip">Active</span>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <aside class="leaderboard-home-side">
+              <article class="leaderboard-spotlight-card">
+                <span class="eyebrow-badge leaderboard-spotlight-badge">For organizers too</span>
+                <h3>Attendance that feels rewarding, not invisible.</h3>
+                <p>When check-ins, rankings, and certificates live in one place, students feel progress and organizers get a clearer pulse on what is actually working.</p>
+                <div class="leaderboard-spotlight-metrics">
+                  <div>
+                    <strong>Fast scans</strong>
+                    <span>Keep entry lines moving</span>
+                  </div>
+                  <div>
+                    <strong>Visible streaks</strong>
+                    <span>Give students a reason to return</span>
+                  </div>
+                  <div>
+                    <strong>Instant proof</strong>
+                    <span>Certificates stay ready in dashboard</span>
+                  </div>
+                </div>
+                <a href="signup.html" class="btn btn-primary">Get Started 🙌</a>
+              </article>
+            </aside>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-shell">
+        <div class="footer-main">
+          <div class="footer-brand-block">
+            <a href="index.html" class="eventdesk-logo">EventDesk</a>
+            <p class="footer-copy mb-0">A cleaner system for campus events, from first discovery to final certificate.</p>
+            <div class="footer-pills" aria-hidden="true">
+              <span>Discover</span>
+              <span>Register</span>
+              <span>Attend</span>
+              <span>Prove it</span>
+            </div>
+          </div>
+
+          <div class="footer-nav-group">
+            <span class="footer-label">Explore</span>
+            <div class="footer-links">
+              <a href="#features">Features</a>
+              <a href="#how-it-works">How it works</a>
+              <a href="events.html">Events</a>
+              <a href="leaderboard.html">Leaderboard</a>
+            </div>
+          </div>
+
+          <div class="footer-nav-group">
+            <span class="footer-label">Account</span>
+            <div class="footer-links">
+              <a href="login.html">Login</a>
+              <a href="signup.html">Create account</a>
+              <a href="organizer-dashboard.html">Organizer dashboard</a>
+              <a href="student-dashboard.html">Student dashboard</a>
+            </div>
+          </div>
+
+          <div class="footer-cta-block">
+            <span class="footer-label">Ready to launch?</span>
+            <p>Set up registrations, track attendance, and make every event feel more polished from day one.</p>
+            <div class="footer-cta-actions">
+              <a href="signup.html" class="btn btn-primary">Start Free</a>
+              <a href="events.html" class="btn btn-outline-primary">Browse Events</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer-bottom-row">
+          <p class="footer-bottom mb-0">© 2026 EventDesk. Built with Firebase, jsPDF, and html5-qrcode.</p>
+          <div class="footer-meta-links">
+            <a href="mailto:hello@eventdesk.app">hello@eventdesk.app</a>
+            <a href="leaderboard.html">Campus leaderboard</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script type="module">
+    import { loadLeaderboardPreview } from './js/leaderboard.js';
+
+    function initFeatureReveal() {
+      const revealItems = [...document.querySelectorAll('.feature-reveal')];
+
+      if (!revealItems.length) {
+        return;
+      }
+
+      document.documentElement.classList.add('reveal-ready');
+
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches || !('IntersectionObserver' in window)) {
+        revealItems.forEach((item) => item.classList.add('in-view'));
+        return;
+      }
+
+      const revealObserver = new IntersectionObserver((entries, observer) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) {
+            return;
+          }
+
+          entry.target.classList.add('in-view');
+          observer.unobserve(entry.target);
+        });
+      }, {
+        threshold: 0.18,
+        rootMargin: '0px 0px -8% 0px'
+      });
+
+      revealItems.forEach((item) => revealObserver.observe(item));
+    }
+
+    loadLeaderboardPreview('leaderboard-preview-body');
+    initFeatureReveal();
+  </script>
+</body>
+</html>

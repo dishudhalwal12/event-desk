@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EventDesk | Leaderboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/components.css">
+  <script type="module" src="js/firebase-config.js"></script>
+</head>
+<body data-page="leaderboard">
+  <nav class="navbar navbar-expand-lg sticky-top eventdesk-navbar">
+    <div class="container">
+      <a class="navbar-brand eventdesk-logo" href="index.html">EventDesk</a>
+      <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#leaderboardNav" aria-controls="leaderboardNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="leaderboardNav">
+        <ul class="navbar-nav ms-auto gap-lg-3 align-items-lg-center">
+          <li class="nav-item"><a class="nav-link" href="events.html">Events</a></li>
+          <li class="nav-item"><a class="nav-link active" href="leaderboard.html">Leaderboard</a></li>
+          <li class="nav-item"><a class="btn btn-primary" href="signup.html">Get Started 🙌</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <main class="section-space pt-4">
+    <div class="container">
+      <section class="leaderboard-hero">
+        <div class="row align-items-center g-4">
+          <div class="col-lg-8">
+            <h1 class="leaderboard-title">Event Legends 🏆</h1>
+            <p class="leaderboard-subtitle">The most active students on campus.</p>
+          </div>
+          <div class="col-lg-4 d-none d-lg-block text-end">
+            <img src="assets/images/hero.png" alt="Student with trophy" class="float-img dashboard-float">
+          </div>
+        </div>
+      </section>
+
+      <section id="leaderboardLoader" class="mb-4"></section>
+
+      <section class="podium-grid mb-5">
+        <div class="podium-card second-place" id="podiumSecond">
+          <span class="podium-medal">🥈</span>
+          <div class="podium-avatar">2</div>
+          <strong class="podium-name">Waiting…</strong>
+          <small class="podium-count">0 events</small>
+        </div>
+        <div class="podium-card first-place" id="podiumFirst">
+          <span class="podium-medal">🥇</span>
+          <div class="podium-avatar">1</div>
+          <strong class="podium-name">Waiting…</strong>
+          <small class="podium-count">0 events</small>
+        </div>
+        <div class="podium-card third-place" id="podiumThird">
+          <span class="podium-medal">🥉</span>
+          <div class="podium-avatar">3</div>
+          <strong class="podium-name">Waiting…</strong>
+          <small class="podium-count">0 events</small>
+        </div>
+      </section>
+
+      <section class="card leaderboard-card">
+        <div class="table-responsive">
+          <table class="table align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Student Name</th>
+                <th>Events Attended</th>
+                <th>Badge</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboardTableBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <template id="leaderboardRowTemplate">
+    <tr>
+      <td class="rank-cell"></td>
+      <td class="name-cell"></td>
+      <td class="count-cell"></td>
+      <td><span class="badge badge-soft badge-label"></span></td>
+    </tr>
+  </template>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script type="module">
+    import { initLeaderboardPage } from './js/leaderboard.js';
+
+    initLeaderboardPage();
+  </script>
+</body>
+</html>

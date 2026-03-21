@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EventDesk | Event Details</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/components.css">
+  <script type="module" src="js/firebase-config.js"></script>
+</head>
+<body data-page="event-detail">
+  <nav class="navbar navbar-expand-lg sticky-top eventdesk-navbar">
+    <div class="container">
+      <a class="navbar-brand eventdesk-logo" href="index.html">EventDesk</a>
+      <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#detailNav" aria-controls="detailNav" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      <div class="collapse navbar-collapse" id="detailNav">
+        <ul class="navbar-nav ms-auto gap-lg-3">
+          <li class="nav-item"><a class="nav-link" href="events.html">Events</a></li>
+          <li class="nav-item"><a class="nav-link" href="leaderboard.html">Leaderboard</a></li>
+          <li class="nav-item"><a class="nav-link" href="login.html">Login</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <main class="section-space pt-4">
+    <div class="container">
+      <div id="eventDetailLoader" class="mb-4"></div>
+      <div class="row g-5">
+        <div class="col-lg-7">
+          <img id="detailPoster" src="assets/images/hero.png" alt="Event poster" class="detail-poster mb-4">
+          <span id="detailCategory" class="badge badge-category mb-3">Category</span>
+          <h1 id="detailTitle" class="detail-title">Loading event…</h1>
+          <p id="detailDescription" class="detail-description mt-3">Event details will appear here once the event data is loaded.</p>
+          <div class="organizer-row mt-4">
+            <div id="organizerAvatar" class="avatar-circle">ED</div>
+            <div>
+              <p class="mb-1 text-muted small">Organized by</p>
+              <strong id="organizerName">EventDesk Team</strong>
+            </div>
+          </div>
+          <div class="detail-meta-grid mt-4">
+            <div class="detail-meta-item"><span>📅</span> <strong>Date</strong><p id="detailDate">March 28 2026</p></div>
+            <div class="detail-meta-item"><span>⏰</span> <strong>Time</strong><p id="detailTime">3:00 PM</p></div>
+            <div class="detail-meta-item"><span>📍</span> <strong>Venue</strong><p id="detailVenue">Seminar Hall B</p></div>
+            <div class="detail-meta-item"><span>🏷️</span> <strong>Category</strong><p id="detailCategoryText">Workshop</p></div>
+          </div>
+
+          <div id="detailDynamicMeta" class="d-flex flex-wrap gap-2 mt-4 d-none">
+            <!-- Dynamic tags like Team Size, Deadline, Tracks, Eligibility go here -->
+          </div>
+
+          <div id="detailExtendedSections" class="mt-5 pt-3 border-top d-none">
+            <div class="event-section mb-5 d-none" id="sectionTimelineWrapper">
+              <h3 class="mb-3">Stages &amp; Timeline</h3>
+              <div id="detailTimeline" class="text-muted" style="white-space: pre-wrap; font-size: 0.95rem;"></div>
+            </div>
+            <div class="event-section mb-5 d-none" id="sectionPrizesWrapper">
+              <h3 class="mb-3">Rewards &amp; Prizes</h3>
+              <div id="detailPrizes" class="text-muted" style="white-space: pre-wrap; font-size: 0.95rem;"></div>
+            </div>
+            <div class="event-section mb-5 d-none" id="sectionFaqsWrapper">
+              <h3 class="mb-3">Frequently Asked Questions</h3>
+              <div id="detailFaqs" class="text-muted" style="white-space: pre-wrap; font-size: 0.95rem;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-5">
+          <aside class="card sticky-sidebar">
+            <div class="card-body p-4">
+              <div class="d-flex justify-content-between align-items-end mb-3">
+                <div>
+                  <p class="detail-seat-count mb-1"><span id="registeredCount">0</span> / <span id="seatCap">0</span> Seats Taken</p>
+                  <span id="spotsBadge" class="badge badge-warning-soft">0 spots left</span>
+                </div>
+              </div>
+              <div class="seat-progress large mb-2">
+                <div id="detailProgressFill" class="seat-progress-fill"></div>
+              </div>
+              <p id="detailProgressCopy" class="text-muted small mb-4">Live registration data updates here.</p>
+
+              <div id="detailCountdown" class="countdown-panel mb-4">
+                <div><span id="countdownDays">00</span><small>D</small></div>
+                <div><span id="countdownHours">00</span><small>H</small></div>
+                <div><span id="countdownMinutes">00</span><small>M</small></div>
+                <div><span id="countdownSeconds">00</span><small>S</small></div>
+              </div>
+
+              <div id="registrationActionWrap">
+                <button id="registerButton" class="btn btn-primary w-100 btn-lg">Register 🎟️</button>
+              </div>
+              <div id="fullStateWrap" class="d-none text-center">
+                <p class="full-copy">This event is full 😔</p>
+                <button id="waitlistButton" class="btn btn-outline-warning w-100 btn-lg">Join Waitlist ⏳</button>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="modal fade" id="registrationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content modal-card">
+        <div class="modal-body p-4 p-lg-5">
+          <div id="registrationFormState">
+            <h2 id="registrationModalTitle" class="modal-title-custom mb-4">Register for Event 🎟️</h2>
+            <form id="registrationForm" novalidate>
+              <div class="mb-3">
+                <label for="registrationName" class="form-label">Full Name</label>
+                <input type="text" id="registrationName" class="form-control readonly-field" readonly>
+              </div>
+              <div class="mb-2">
+                <label for="registrationPhone" class="form-label">Phone</label>
+                <input type="tel" id="registrationPhone" class="form-control" placeholder="10-digit mobile number" maxlength="10" required>
+                <div id="registrationPhoneError" class="field-error d-none">Phone number please 📞</div>
+              </div>
+              <button type="submit" class="btn btn-primary w-100 mt-4">Confirm Registration 🎟️</button>
+              <button type="button" class="btn btn-link text-muted w-100 mt-2" data-bs-dismiss="modal">Cancel ↩️</button>
+            </form>
+          </div>
+          <div id="registrationSuccessState" class="text-center d-none">
+            <div class="success-check mx-auto mb-3">✓</div>
+            <h2 class="success-title">You&apos;re in! 🎉</h2>
+            <p>Check your email for your QR code.</p>
+            <a href="student-dashboard.html" class="btn btn-outline-primary mt-3">View My Events 📅</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script type="module">
+    import { initEventDetailPage } from './js/events.js';
+
+    initEventDetailPage();
+  </script>
+</body>
+</html>
