@@ -102,7 +102,7 @@ export function hideLoadingSpinner(elementId, restoreContent = '') {
 export function getSeatStatus(registeredCount = 0, seatCap = 0) {
   const remaining = Math.max(Number(seatCap) - Number(registeredCount), 0);
   const percentage = seatCap ? (remaining / seatCap) * 100 : 0;
-  let label = `${remaining} spots left`;
+  let label = `${remaining} slots left`;
   let colorClass = 'teal';
   const isUrgent = remaining <= 10;
 

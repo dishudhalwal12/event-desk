@@ -109,7 +109,36 @@ async function renumberWaitlist(eventId) {
   await batch.commit();
 }
 
-export async function addToWaitlist(userId, eventId, phone) {
+function buildTeamPayload(userId, userProfile, phone, teamOptions = {}) {
+  const lead = {
+    userId,
+    name: userProfile?.name || 'Student',
+    email: auth.currentUser?.email || userProfile?.email || '',
+    phone,
+    isLeader: true
+  };
+
+  const additionalMembers = Array.isArray(teamOptions.teamMembers)
+    ? teamOptions.teamMembers
+      .map((member) => ({
+        name: String(member?.name || '').trim(),
+        email: String(member?.email || '').trim(),
+        isLeader: false
+      }))
+      .filter((member) => member.name && member.email)
+    : [];
+
+  const participantCount = Math.max(1, Math.min(Number(teamOptions.teamSize) || 1, additionalMembers.length + 1, 4));
+  const teamMembers = [lead, ...additionalMembers].slice(0, participantCount);
+
+  return {
+    teamName: String(teamOptions.teamName || '').trim(),
+    participantCount: teamMembers.length,
+    teamMembers
+  };
+}
+
+export async function addToWaitlist(userId, eventId, phone, teamOptions = {}) {
   const existingRegistration = await getExistingRegistration(userId, eventId);
   if (existingRegistration?.data()?.status === 'waitlisted') {
     return {
@@ -120,6 +149,7 @@ export async function addToWaitlist(userId, eventId, phone) {
   }
 
   const userProfile = await fetchUserProfile(userId);
+  const teamPayload = buildTeamPayload(userId, userProfile, phone, teamOptions);
   const waitlistQuery = query(
     collection(db, 'registrations'),
     where('eventId', '==', eventId),
@@ -137,6 +167,9 @@ export async function addToWaitlist(userId, eventId, phone) {
     email: auth.currentUser?.email || userProfile?.email || '',
     phone,
     qrCode: JSON.stringify({ regId: registrationRef.id, userId, eventId }),
+    teamName: teamPayload.teamName || null,
+    participantCount: teamPayload.participantCount,
+    teamMembers: teamPayload.teamMembers,
     status: 'waitlisted',
     waitlistPos: position,
     registeredAt: serverTimestamp()
@@ -146,7 +179,7 @@ export async function addToWaitlist(userId, eventId, phone) {
   return { waitlisted: true, position, registrationId: registrationRef.id };
 }
 
-export async function registerStudent(userId, eventId, phone) {
+export async function registerStudent(userId, eventId, phone, teamOptions = {}) {
   const eventRef = doc(db, 'events', eventId);
   const registrationRef = doc(collection(db, 'registrations'));
   const userProfile = await fetchUserProfile(userId);
@@ -169,6 +202,7 @@ export async function registerStudent(userId, eventId, phone) {
   }
 
   let shouldWaitlist = false;
+  const teamPayload = buildTeamPayload(userId, userProfile, phone, teamOptions);
 
   await runTransaction(db, async (transaction) => {
     const currentEvent = await transaction.get(eventRef);
@@ -191,6 +225,9 @@ export async function registerStudent(userId, eventId, phone) {
       email: auth.currentUser?.email || userProfile?.email || '',
       phone,
       qrCode,
+      teamName: teamPayload.teamName || null,
+      participantCount: teamPayload.participantCount,
+      teamMembers: teamPayload.teamMembers,
       status: 'registered',
       waitlistPos: null,
       registeredAt: serverTimestamp()
@@ -201,7 +238,7 @@ export async function registerStudent(userId, eventId, phone) {
   });
 
   if (shouldWaitlist) {
-    return addToWaitlist(userId, eventId, phone);
+    return addToWaitlist(userId, eventId, phone, teamOptions);
   }
 
   await updateDoc(doc(db, 'users', userId), { phone });
@@ -354,19 +391,23 @@ function getCardState(item) {
 }
 
 function getStudentStatusCopy(item, state) {
+  const teamSummary = item.participantCount > 1
+    ? ` Team ${item.teamName ? `"${item.teamName}"` : 'registration'} includes ${item.participantCount} participants.`
+    : '';
+
   if (state.action === 'waitlisted') {
-    return `You are #${item.waitlistPos} in queue for this event. If a seat opens, the organizer can promote you straight from their dashboard.`;
+    return `You are #${item.waitlistPos} in queue for this event. If a seat opens, the organizer can promote you straight from their dashboard.${teamSummary}`;
   }
   if (state.action === 'certificate') {
-    return 'Attendance is confirmed and the organizer has completed the event. Your certificate is ready to download.';
+    return `Attendance is confirmed and the organizer has completed the event. Your certificate is ready to download.${teamSummary}`;
   }
   if (state.action === 'attended') {
-    return 'Your attendance was marked successfully. The certificate unlocks as soon as the organizer marks this event completed.';
+    return `Your attendance was marked successfully. The certificate unlocks as soon as the organizer marks this event completed.${teamSummary}`;
   }
   if (state.action === 'none') {
-    return 'You released your spot for this event. If you change your mind later, you can register again if seats are still open.';
+    return `You released your spot for this event. If you change your mind later, you can register again if seats are still open.${teamSummary}`;
   }
-  return item.event?.description || 'Your QR code is ready. Keep it handy for a smooth check-in at the venue.';
+  return `${item.event?.description || 'Your QR code is ready. Keep it handy for a smooth check-in at the venue.'}${teamSummary}`;
 }
 
 function applyStudentPosterPresentation(item, fragment) {

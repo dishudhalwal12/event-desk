@@ -31,6 +31,7 @@ import {
   hideLoadingSpinner,
   showLoadingSpinner,
   showToast,
+  validateEmail,
   validatePhone
 } from './utils.js';
 
@@ -43,70 +44,152 @@ const fallbackEvents = [
   {
     id: 'sample-tech-summit',
     eventId: 'sample-tech-summit',
-    title: 'Campus Tech Summit',
-    description: 'A high-energy day of demos, mini talks, and networking for student builders.',
-    category: 'Tech',
+    title: 'BuildSprint AI Hackathon',
+    description: 'Ship an AI-first product, present it to mentors, and compete for prizes in a fast-paced campus hackathon.',
+    category: 'Hackathon',
     date: new Date('2026-03-28T15:00:00'),
-    venue: 'Seminar Hall B',
+    venue: 'Innovation Lab, Block C',
+    location: 'Bengaluru',
+    format: 'Hybrid',
     seatCap: 60,
     registeredCount: 48,
     posterUrl: 'assets/images/hero.png',
     organizerId: 'sample-organizer-1',
     organizerName: 'Campus Organizer',
+    regDeadline: new Date('2026-03-26T23:00:00'),
+    teamSize: 4,
+    tracks: ['AI', 'Product', 'Frontend'],
+    eligibility: ['Undergraduate', 'Postgraduate'],
+    timeline: 'Round 1: Idea submission\nRound 2: Prototype build\nRound 3: Final demo day',
+    prizes: 'Winner: INR 40,000\nRunner-up: INR 20,000\nSpecial mention: Internship interviews',
+    faqs: 'Teams can have up to four members. The final showcase is on campus for shortlisted teams.',
     status: 'Upcoming'
   },
   {
-    id: 'sample-culture-night',
-    eventId: 'sample-culture-night',
-    title: 'Culture Night Live',
-    description: 'Music, dance, and street food stalls for the loudest evening on campus.',
-    category: 'Cultural',
-    date: new Date('2026-03-25T18:30:00'),
-    venue: 'Open Air Theatre',
-    seatCap: 250,
-    registeredCount: 210,
+    id: 'sample-case-comp',
+    eventId: 'sample-case-comp',
+    title: 'MarketPulse Case Competition',
+    description: 'Solve a live growth challenge, submit a deck, and pitch your recommendations to a mixed industry panel.',
+    category: 'Competition',
+    date: new Date('2026-03-30T11:00:00'),
+    venue: 'Management Auditorium',
+    location: 'Pune',
+    format: 'Offline',
+    seatCap: 90,
+    registeredCount: 52,
     posterUrl: 'assets/images/hero.png',
     organizerId: 'sample-organizer-2',
-    organizerName: 'Culture Society',
+    organizerName: 'Business Club',
+    regDeadline: new Date('2026-03-27T21:00:00'),
+    teamSize: 4,
+    tracks: ['Marketing', 'Strategy'],
+    eligibility: ['MBA', 'Engineering Students'],
+    timeline: 'Round 1: Quiz\nRound 2: Deck submission\nRound 3: Final presentation',
+    prizes: 'Winner: INR 25,000\nRunner-up: INR 12,000',
     status: 'Upcoming'
   },
   {
-    id: 'sample-sports-day',
-    eventId: 'sample-sports-day',
-    title: 'Sports Day Sprint Trials',
-    description: 'Track heats, sign-ups, and warmups for the annual inter-college meet.',
-    category: 'Sports',
-    date: new Date('2026-03-21T09:00:00'),
-    venue: 'Main Ground',
-    seatCap: 80,
-    registeredCount: 77,
+    id: 'sample-product-internship',
+    eventId: 'sample-product-internship',
+    title: 'Campus Product Internship Drive',
+    description: 'Apply for a shortlisting round, learn about the role, and unlock interviews for a summer product internship.',
+    category: 'Internship',
+    date: new Date('2026-04-02T14:00:00'),
+    venue: 'Career Center',
+    location: 'Remote',
+    format: 'Online',
+    seatCap: 180,
+    registeredCount: 133,
     posterUrl: 'assets/images/hero.png',
     organizerId: 'sample-organizer-3',
-    organizerName: 'Sports Council',
+    organizerName: 'Career Cell',
+    regDeadline: new Date('2026-03-31T18:00:00'),
+    teamSize: 1,
+    tracks: ['Product', 'Analytics'],
+    eligibility: ['Final Year', 'Recent Graduates'],
+    timeline: 'Stage 1: Profile screening\nStage 2: Product assessment\nStage 3: Interview shortlist',
+    prizes: 'Internship stipend and pre-placement interview opportunities.',
     status: 'Upcoming'
   },
   {
     id: 'sample-design-lab',
     eventId: 'sample-design-lab',
     title: 'Design Sprint Lab',
-    description: 'A hands-on workshop for UI, prototyping, and quick critique rounds.',
+    description: 'A hands-on workshop for UI, prototyping, and quick critique rounds with mentor feedback.',
     category: 'Workshop',
     date: new Date('2026-03-30T11:00:00'),
     venue: 'Innovation Studio',
+    location: 'Delhi',
+    format: 'Offline',
     seatCap: 40,
     registeredCount: 18,
     posterUrl: 'assets/images/hero.png',
     organizerId: 'sample-organizer-1',
     organizerName: 'Design Club',
+    regDeadline: new Date('2026-03-29T17:00:00'),
+    teamSize: 1,
+    tracks: ['UI/UX', 'Prototyping'],
+    eligibility: ['All'],
+    timeline: 'Live critique circles and rapid redesign rounds through the day.',
+    prizes: 'Certificate and portfolio review slots.',
     status: 'Upcoming'
   }
 ];
+
+function splitCommaValues(value) {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  return String(value || '')
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function getNormalizedLocation(item) {
+  return item.location || item.city || item.venue || 'Campus';
+}
+
+function getNormalizedFormat(item) {
+  return item.format || item.mode || 'Offline';
+}
+
+function getNormalizedTeamSize(item) {
+  const raw = item.teamSize ?? item.teamLimit ?? 1;
+  if (typeof raw === 'number' && Number.isFinite(raw)) {
+    return Math.max(1, Math.min(raw, 4));
+  }
+
+  const numericValues = String(raw)
+    .match(/\d+/g)
+    ?.map((value) => Number(value))
+    .filter((value) => Number.isFinite(value));
+
+  if (!numericValues?.length) {
+    return 1;
+  }
+
+  return Math.max(1, Math.min(Math.max(...numericValues), 4));
+}
+
+function getParticipationLabel(event) {
+  const teamSize = getNormalizedTeamSize(event);
+  return teamSize > 1 ? `Teams up to ${teamSize}` : 'Individual';
+}
+
+function getTrackHighlight(event) {
+  return splitCommaValues(event.tracks)[0] || '';
+}
 
 function normalizeEvent(item) {
   return {
     id: item.id || item.eventId,
     eventId: item.id || item.eventId,
-    ...item
+    ...item,
+    category: item.category || 'Other',
+    format: getNormalizedFormat(item),
+    location: getNormalizedLocation(item),
+    teamSize: getNormalizedTeamSize(item),
+    tracks: splitCommaValues(item.tracks),
+    eligibility: splitCommaValues(item.eligibility)
   };
 }
 
@@ -188,12 +271,29 @@ function formatActivityTime(timestamp) {
   return `${days} day ago`;
 }
 
-function filterEvents(events, categoryFilter = 'All', searchQuery = '') {
+function filterEvents(events, filters = {}) {
+  const {
+    category = 'All',
+    search = '',
+    location = 'All',
+    format = 'All',
+    team = 'All'
+  } = filters;
+
   return events.filter((event) => {
-    const matchesCategory = categoryFilter === 'All' || event.category === categoryFilter;
-    const haystack = `${event.title} ${event.description} ${event.venue}`.toLowerCase();
-    const matchesSearch = !searchQuery || haystack.includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
+    const normalizedLocation = getNormalizedLocation(event);
+    const teamSize = getNormalizedTeamSize(event);
+    const matchesCategory = category === 'All' || event.category === category;
+    const matchesLocation = location === 'All' || normalizedLocation === location;
+    const matchesFormat = format === 'All' || getNormalizedFormat(event) === format;
+    const matchesTeam = team === 'All'
+      || (team === 'Solo' && teamSize === 1)
+      || (team === 'Team' && teamSize > 1)
+      || (team === 'TeamUpTo4' && teamSize === 4);
+    const haystack = `${event.title} ${event.description} ${event.venue} ${normalizedLocation} ${event.category} ${splitCommaValues(event.tracks).join(' ')}`.toLowerCase();
+    const matchesSearch = !search || haystack.includes(search.toLowerCase());
+
+    return matchesCategory && matchesLocation && matchesFormat && matchesTeam && matchesSearch;
   });
 }
 
@@ -212,7 +312,7 @@ function subscribeToEvents(callback, onError) {
 }
 
 function buildMetaLine(event) {
-  return `📅 ${formatShortDate(event.date)}  •  📍 ${event.venue}`;
+  return `${formatShortDate(event.date)}  •  ${event.venue}  •  ${getNormalizedFormat(event)}`;
 }
 
 function renderCountdownChip(element, dateValue) {
@@ -268,6 +368,12 @@ function renderEventCards(events) {
     const progressCopy = fragment.querySelector('.seat-progress-copy');
     const seatBadge = fragment.querySelector('.seat-badge');
     const categoryBadge = fragment.querySelector('.badge-category');
+    const formatBadge = fragment.querySelector('.event-format-badge');
+    const summary = fragment.querySelector('.event-card-summary');
+    const locationChip = fragment.querySelector('.event-location-chip');
+    const teamChip = fragment.querySelector('.event-team-chip');
+    const trackChip = fragment.querySelector('.event-track-chip');
+    const deadlineCopy = fragment.querySelector('.event-deadline-copy');
     const detailsButton = fragment.querySelector('.view-details-btn');
     const countdownChip = fragment.querySelector('.countdown-chip');
     const seatInfo = fragment.querySelector('.info-seats');
@@ -277,13 +383,26 @@ function renderEventCards(events) {
     poster.src = event.posterUrl || 'assets/images/hero.png';
     title.textContent = event.title;
     meta.textContent = buildMetaLine(event);
+    summary.textContent = event.description;
     progressFill.style.width = `${seatStatus.usedPercent}%`;
     progressFill.className = `seat-progress-fill ${seatStatus.colorClass === 'amber' ? 'amber' : seatStatus.colorClass === 'red' ? 'red' : ''}`.trim();
-    progressCopy.textContent = `${event.registeredCount} / ${event.seatCap} seats taken`;
+    progressCopy.textContent = `${event.registeredCount} / ${event.seatCap} registrations`;
     seatBadge.textContent = seatStatus.label;
     seatBadge.className = `seat-badge ${seatStatus.colorClass === 'amber' ? 'amber' : seatStatus.colorClass === 'red' ? 'red' : ''}`.trim();
     categoryBadge.textContent = event.category;
-    seatInfo.textContent = `${event.registeredCount} / ${event.seatCap} seats taken`;
+    formatBadge.textContent = getNormalizedFormat(event);
+    locationChip.innerHTML = `<strong>Location</strong> ${getNormalizedLocation(event)}`;
+    teamChip.innerHTML = `<strong>Participation</strong> ${getParticipationLabel(event)}`;
+    const trackHighlight = getTrackHighlight(event);
+    if (trackHighlight) {
+      trackChip.innerHTML = `<strong>Track</strong> ${trackHighlight}`;
+      trackChip.classList.remove('d-none');
+    } else {
+      trackChip.classList.add('d-none');
+    }
+    const deadlineValue = event.regDeadline ? formatDate(event.regDeadline) : `Closes on ${formatShortDate(event.date)}`;
+    deadlineCopy.textContent = event.regDeadline ? `Registration deadline: ${deadlineValue}` : `Opens until the event begins`;
+    seatInfo.textContent = `${event.registeredCount} / ${event.seatCap} registrations`;
     detailsButton.href = `event-detail.html?id=${event.id}`;
     countdownChip.dataset.eventDate = getEventDateValue(event).toISOString();
     renderCountdownChip(countdownChip, countdownChip.dataset.eventDate);
@@ -295,11 +414,18 @@ function renderEventCards(events) {
 
 function applySort(events, sortValue) {
   const items = [...events];
-  if (sortValue === 'seats') {
+  if (sortValue === 'spots') {
     return items.sort((left, right) => (left.seatCap - left.registeredCount) - (right.seatCap - right.registeredCount));
   }
   if (sortValue === 'popular') {
     return items.sort((left, right) => right.registeredCount - left.registeredCount);
+  }
+  if (sortValue === 'deadline') {
+    return items.sort((left, right) => {
+      const leftValue = left.regDeadline ? getEventDateValue({ date: left.regDeadline }).getTime() : getEventDateValue(left).getTime();
+      const rightValue = right.regDeadline ? getEventDateValue({ date: right.regDeadline }).getTime() : getEventDateValue(right).getTime();
+      return leftValue - rightValue;
+    });
   }
   return items.sort((left, right) => getEventDateValue(left) - getEventDateValue(right));
 }
@@ -319,9 +445,11 @@ export async function createEvent(eventData) {
     category: eventData.category,
     date: new Date(eventData.date),
     venue: eventData.venue,
+    location: eventData.location,
+    format: eventData.format,
     seatCap: Number(eventData.seatCap),
     regDeadline: eventData.regDeadline ? new Date(eventData.regDeadline) : null,
-    teamSize: eventData.teamSize || null,
+    teamSize: Number(eventData.teamSize) || 1,
     tracks: eventData.tracks ? eventData.tracks.split(',').map(t => t.trim()).filter(Boolean) : [],
     eligibility: eventData.eligibility ? eventData.eligibility.split(',').map(e => e.trim()).filter(Boolean) : [],
     timeline: eventData.timeline || null,
@@ -336,7 +464,7 @@ export async function createEvent(eventData) {
   });
 }
 
-export async function getEvents(categoryFilter = 'All', searchQuery = '') {
+export async function getEvents(filters = {}) {
   try {
     const eventsQuery = query(collection(db, 'events'), orderBy('date', 'asc'));
     const snapshot = await getDocs(eventsQuery);
@@ -344,10 +472,10 @@ export async function getEvents(categoryFilter = 'All', searchQuery = '') {
       .map((item) => normalizeEvent({ id: item.id, ...item.data() }))
       .filter((event) => event.status !== 'Completed');
 
-    return filterEvents(allEvents, categoryFilter, searchQuery);
+    return filterEvents(allEvents, filters);
   } catch (error) {
     console.warn('Using fallback events:', error);
-    return filterEvents(fallbackEvents, categoryFilter, searchQuery);
+    return filterEvents(fallbackEvents, filters);
   }
 }
 
@@ -391,7 +519,10 @@ export function listenToEventRegistrations(eventId, callback) {
 export async function initEventsPage() {
   const searchInput = document.getElementById('eventSearchInput');
   const sortSelect = document.getElementById('sortEvents');
-  const categoryButtons = document.querySelectorAll('#categoryPills .btn-pill');
+  const locationSelect = document.getElementById('eventLocationFilter');
+  const formatSelect = document.getElementById('eventFormatFilter');
+  const teamSelect = document.getElementById('eventTeamFilter');
+  const categoryContainer = document.getElementById('categoryPills');
   const initialQuery = getQueryParam('q') || '';
   let allEvents = [];
   let currentCategory = 'All';
@@ -401,21 +532,68 @@ export async function initEventsPage() {
     searchInput.value = initialQuery;
   }
 
+  const renderCategoryPills = () => {
+    if (!categoryContainer) return;
+    const categories = ['All', ...new Set(allEvents.map((event) => event.category).filter(Boolean))];
+    categoryContainer.innerHTML = categories.map((category) => `
+      <button class="btn btn-pill ${category === currentCategory ? 'active' : ''}" data-category="${category}">
+        ${category === 'All' ? 'All Opportunities' : category}
+      </button>
+    `).join('');
+
+    categoryContainer.querySelectorAll('.btn-pill').forEach((button) => {
+      button.addEventListener('click', () => {
+        currentCategory = button.dataset.category;
+        renderCategoryPills();
+        applyFilters();
+      });
+    });
+  };
+
+  const populateLocations = () => {
+    if (!locationSelect) return;
+    const currentValue = locationSelect.value || 'All';
+    const locations = ['All', ...new Set(allEvents.map((event) => getNormalizedLocation(event)).filter(Boolean))];
+    locationSelect.innerHTML = locations.map((location) => `
+      <option value="${location}">${location === 'All' ? 'All locations' : location}</option>
+    `).join('');
+    locationSelect.value = locations.includes(currentValue) ? currentValue : 'All';
+  };
+
   const applyFilters = () => {
-    const filtered = filterEvents(allEvents, currentCategory, searchInput.value.trim());
+    const filtered = filterEvents(allEvents, {
+      category: currentCategory,
+      search: searchInput?.value.trim() || '',
+      location: locationSelect?.value || 'All',
+      format: formatSelect?.value || 'All',
+      team: teamSelect?.value || 'All'
+    });
     const sorted = applySort(filtered, sortSelect.value);
     renderEventCards(sorted);
+    const resultMeta = document.getElementById('eventsResultMeta');
+    const livePulse = document.getElementById('eventsLivePulse');
+    if (resultMeta) {
+      resultMeta.textContent = `${sorted.length} live opportunity${sorted.length === 1 ? '' : 'ies'} matching your filters.`;
+    }
+    if (livePulse) {
+      const teamBasedCount = sorted.filter((event) => getNormalizedTeamSize(event) > 1).length;
+      livePulse.textContent = `${teamBasedCount} team-based picks in this view`;
+    }
   };
 
   subscribeToEvents(
     (events) => {
       allEvents = events;
+      populateLocations();
+      renderCategoryPills();
       applyFilters();
       hideLoadingSpinner('eventsLoader', '');
     },
     async (error) => {
       console.warn('Live events fallback:', error);
       allEvents = await getEvents();
+      populateLocations();
+      renderCategoryPills();
       applyFilters();
       hideLoadingSpinner('eventsLoader', '');
     }
@@ -423,14 +601,9 @@ export async function initEventsPage() {
 
   searchInput?.addEventListener('keyup', applyFilters);
   sortSelect?.addEventListener('change', applyFilters);
-  categoryButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      categoryButtons.forEach((item) => item.classList.remove('active'));
-      button.classList.add('active');
-      currentCategory = button.dataset.category;
-      applyFilters();
-    });
-  });
+  locationSelect?.addEventListener('change', applyFilters);
+  formatSelect?.addEventListener('change', applyFilters);
+  teamSelect?.addEventListener('change', applyFilters);
 }
 
 function populateDetailCountdown(dateValue) {
@@ -441,6 +614,33 @@ function populateDetailCountdown(dateValue) {
   document.getElementById('countdownMinutes').textContent = String(countdown.minutes).padStart(2, '0');
   document.getElementById('countdownSeconds').textContent = String(countdown.seconds).padStart(2, '0');
   countdownPanel.classList.toggle('urgent', countdown.isUrgent);
+}
+
+function buildDetailChip(label, value) {
+  return `<span class="detail-chip"><strong>${label}</strong> ${value}</span>`;
+}
+
+function renderTeamMemberFields(container, count) {
+  if (!container) return;
+  const cards = [];
+  for (let index = 2; index <= count; index += 1) {
+    cards.push(`
+      <div class="team-member-card">
+        <h4>Teammate ${index}</h4>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label" for="teamMemberName${index}">Name</label>
+            <input type="text" id="teamMemberName${index}" class="form-control team-member-name" data-member-index="${index}" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="teamMemberEmail${index}">Email</label>
+            <input type="email" id="teamMemberEmail${index}" class="form-control team-member-email" data-member-index="${index}" required>
+          </div>
+        </div>
+      </div>
+    `);
+  }
+  container.innerHTML = cards.join('');
 }
 
 export async function initEventDetailPage() {
@@ -456,6 +656,12 @@ export async function initEventDetailPage() {
   const successState = document.getElementById('registrationSuccessState');
   const successTitle = successState.querySelector('.success-title');
   const successText = successState.querySelector('p');
+  const teamFields = document.getElementById('teamRegistrationFields');
+  const teamHint = document.getElementById('teamRegistrationHint');
+  const teamBadge = document.getElementById('teamRegistrationBadge');
+  const teamNameInput = document.getElementById('teamName');
+  const teamMemberCount = document.getElementById('teamMemberCount');
+  const teamMembersFields = document.getElementById('teamMembersFields');
   let event = await getEventById(eventId);
   let liveRegisteredCount = event.registeredCount || 0;
 
@@ -470,19 +676,23 @@ export async function initEventDetailPage() {
     document.getElementById('detailTime').textContent = formatTimeValue(getEventDateValue(event));
     document.getElementById('detailVenue').textContent = event.venue;
     document.getElementById('detailCategoryText').textContent = event.category;
+    document.getElementById('detailDeadline').textContent = event.regDeadline ? formatDate(event.regDeadline) : 'Until the event begins';
+    document.getElementById('detailFormat').textContent = getNormalizedFormat(event);
+    document.getElementById('detailLocation').textContent = getNormalizedLocation(event);
+    document.getElementById('detailParticipation').textContent = getParticipationLabel(event);
     document.getElementById('organizerName').textContent = event.organizerName || 'Campus Organizer';
     document.getElementById('organizerAvatar').textContent = getInitials(event.organizerName || 'Campus Organizer');
-    document.getElementById('registrationModalTitle').textContent = `Register for ${event.title} 🎟️`;
+    document.getElementById('registrationModalTitle').textContent = `Register for ${event.title}`;
     populateDetailCountdown(getEventDateValue(event));
 
     const dynamicMetaContent = [];
-    if (event.teamSize) dynamicMetaContent.push(`<span class="badge bg-light text-dark border">👥 Team Size: ${event.teamSize}</span>`);
-    if (event.regDeadline) dynamicMetaContent.push(`<span class="badge bg-light text-dark border">⏳ Deadline: ${formatShortDate(event.regDeadline)}</span>`);
+    if (event.teamSize) dynamicMetaContent.push(buildDetailChip('Team', getParticipationLabel(event)));
+    if (event.regDeadline) dynamicMetaContent.push(buildDetailChip('Deadline', formatShortDate(event.regDeadline)));
     if (event.tracks && event.tracks.length) {
-      event.tracks.forEach(track => dynamicMetaContent.push(`<span class="badge bg-primary-subtle text-primary border border-primary-subtle">💻 ${track}</span>`));
+      event.tracks.forEach(track => dynamicMetaContent.push(buildDetailChip('Track', track)));
     }
     if (event.eligibility && event.eligibility.length) {
-      event.eligibility.forEach(elig => dynamicMetaContent.push(`<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle">🎓 ${elig}</span>`));
+      event.eligibility.forEach(elig => dynamicMetaContent.push(buildDetailChip('Eligibility', elig)));
     }
     
     const metaContainer = document.getElementById('detailDynamicMeta');
@@ -528,6 +738,29 @@ export async function initEventDetailPage() {
       document.getElementById('detailExtendedSections').classList.add('d-none');
     }
 
+    const teamLimit = getNormalizedTeamSize(event);
+    if (teamFields && teamMemberCount && teamMembersFields) {
+      if (teamLimit > 1) {
+        teamFields.classList.remove('d-none');
+        teamHint.textContent = `This ${event.category.toLowerCase()} supports team participation with up to ${teamLimit} members.`;
+        teamBadge.textContent = `Up to ${teamLimit}`;
+        teamMemberCount.innerHTML = Array.from({ length: teamLimit }, (_, index) => {
+          const value = index + 1;
+          return `<option value="${value}">${value} participant${value === 1 ? '' : 's'}</option>`;
+        }).join('');
+        if (!teamMemberCount.value || Number(teamMemberCount.value) > teamLimit) {
+          teamMemberCount.value = String(teamLimit);
+        }
+        renderTeamMemberFields(teamMembersFields, Number(teamMemberCount.value));
+      } else {
+        teamFields.classList.add('d-none');
+        teamMemberCount.innerHTML = '<option value="1">1 participant</option>';
+        teamMemberCount.value = '1';
+        teamNameInput.value = '';
+        teamMembersFields.innerHTML = '';
+      }
+    }
+
     clearInterval(detailCountdownTimer);
     detailCountdownTimer = window.setInterval(() => populateDetailCountdown(getEventDateValue(event)), 1000);
     hideLoadingSpinner('eventDetailLoader', '');
@@ -539,7 +772,7 @@ export async function initEventDetailPage() {
     document.getElementById('seatCap').textContent = event.seatCap;
     document.getElementById('detailProgressFill').style.width = `${seatStatus.usedPercent}%`;
     document.getElementById('detailProgressFill').className = `seat-progress-fill ${seatStatus.colorClass === 'amber' ? 'amber' : seatStatus.colorClass === 'red' ? 'red' : ''}`.trim();
-    document.getElementById('detailProgressCopy').textContent = `${registeredCount} / ${event.seatCap} seats taken`;
+    document.getElementById('detailProgressCopy').textContent = `${registeredCount} / ${event.seatCap} registrations`;
     const badge = document.getElementById('spotsBadge');
     badge.textContent = seatStatus.label;
     badge.className = seatStatus.colorClass === 'red'
@@ -583,6 +816,12 @@ export async function initEventDetailPage() {
     phoneError.classList.add('d-none');
     formState.classList.remove('d-none');
     successState.classList.add('d-none');
+    if (getNormalizedTeamSize(event) > 1) {
+      if (!teamMemberCount.value) {
+        teamMemberCount.value = String(getNormalizedTeamSize(event));
+      }
+      renderTeamMemberFields(teamMembersFields, Number(teamMemberCount.value));
+    }
     registrationModal.show();
   };
 
@@ -598,6 +837,10 @@ export async function initEventDetailPage() {
     }
   });
 
+  teamMemberCount?.addEventListener('change', () => {
+    renderTeamMemberFields(teamMembersFields, Number(teamMemberCount.value));
+  });
+
   registrationForm?.addEventListener('submit', async (submitEvent) => {
     submitEvent.preventDefault();
     const phone = phoneInput.value.trim();
@@ -608,8 +851,42 @@ export async function initEventDetailPage() {
       return;
     }
 
+    const teamLimit = getNormalizedTeamSize(event);
+    const teamPayload = {
+      teamName: '',
+      teamSize: 1,
+      teamMembers: []
+    };
+
+    if (teamLimit > 1) {
+      const participantCount = Number(teamMemberCount.value || teamLimit);
+      const memberNames = [...registrationForm.querySelectorAll('.team-member-name')];
+      const memberEmails = [...registrationForm.querySelectorAll('.team-member-email')];
+
+      if (!teamNameInput.value.trim()) {
+        showToast('Give your team a name so everyone is grouped correctly.', 'error');
+        teamNameInput.focus();
+        return;
+      }
+
+      const additionalMembers = [];
+      for (let index = 0; index < participantCount - 1; index += 1) {
+        const name = memberNames[index]?.value.trim();
+        const email = memberEmails[index]?.value.trim();
+        if (!name || !validateEmail(email)) {
+          showToast('Please add valid teammate names and emails.', 'error');
+          return;
+        }
+        additionalMembers.push({ name, email });
+      }
+
+      teamPayload.teamName = teamNameInput.value.trim();
+      teamPayload.teamSize = participantCount;
+      teamPayload.teamMembers = additionalMembers;
+    }
+
     try {
-      const result = await registerStudent(auth.currentUser.uid, event.id, phone);
+      const result = await registerStudent(auth.currentUser.uid, event.id, phone, teamPayload);
       formState.classList.add('d-none');
       successState.classList.remove('d-none');
 
@@ -637,6 +914,12 @@ export async function initEventDetailPage() {
     registrationForm.reset();
     phoneError.classList.add('d-none');
     phoneInput.classList.remove('is-invalid');
+    if (getNormalizedTeamSize(event) > 1) {
+      teamMemberCount.value = String(getNormalizedTeamSize(event));
+      renderTeamMemberFields(teamMembersFields, Number(teamMemberCount.value));
+    } else {
+      teamMembersFields.innerHTML = '';
+    }
   });
 }
 
@@ -729,12 +1012,16 @@ function renderRegistrationRows(target, registrations, attendedUserIds) {
 
   registrations.forEach((item) => {
     const attended = attendedUserIds.has(item.userId);
+    const teamCopy = item.participantCount > 1
+      ? `<div class="text-muted small">${item.teamName ? `${item.teamName} • ` : ''}${item.participantCount} participants</div>`
+      : '';
     const row = document.createElement('div');
     row.className = 'registration-item';
     row.innerHTML = `
       <div>
         <strong>${item.name}</strong>
         <div class="text-muted small">${item.phone || 'Phone unavailable'}</div>
+        ${teamCopy}
         <div class="text-muted small">${attended ? 'Attendance marked ✅' : 'Waiting for QR scan'}</div>
       </div>
       <span class="badge ${attended ? 'badge-success' : 'badge-soft'} text-uppercase">${attended ? 'Attended' : item.status}</span>
@@ -754,12 +1041,16 @@ function renderWaitlistRows(target, items, eventModel, onPromote) {
   items
     .sort((left, right) => (left.waitlistPos || 0) - (right.waitlistPos || 0))
     .forEach((item) => {
+      const teamCopy = item.participantCount > 1
+        ? `<div class="text-muted small">${item.teamName ? `${item.teamName} • ` : ''}${item.participantCount} participants</div>`
+        : '';
       const row = document.createElement('div');
       row.className = 'waitlist-item';
       row.innerHTML = `
         <div>
           <strong>${item.name}</strong>
           <div class="text-muted small">Queue Position #${item.waitlistPos}</div>
+          ${teamCopy}
           <div class="text-muted small">${spotsOpen > 0 ? `${spotsOpen} seat${spotsOpen === 1 ? '' : 's'} open now` : 'Waiting for a seat to open'}</div>
         </div>
       `;
@@ -1088,16 +1379,18 @@ export async function initOrganizerDashboard() {
     const category = document.getElementById('eventCategory').value;
     const date = document.getElementById('eventDateTime').value;
     const venue = document.getElementById('eventVenue').value.trim();
+    const location = document.getElementById('eventLocation').value.trim();
+    const format = document.getElementById('eventFormat').value;
     const seatCap = document.getElementById('eventSeatCap').value;
     const regDeadline = document.getElementById('eventRegDeadline').value;
-    const teamSize = document.getElementById('eventTeamSize').value.trim();
+    const teamSize = document.getElementById('eventTeamSize').value;
     const tracks = document.getElementById('eventTracks').value.trim();
     const eligibility = document.getElementById('eventEligibility').value.trim();
     const timeline = document.getElementById('eventTimeline').value.trim();
     const prizes = document.getElementById('eventPrizes').value.trim();
     const faqs = document.getElementById('eventFaqs').value.trim();
 
-    if (!title || !description || !category || !date || !venue || !seatCap) {
+    if (!title || !description || !category || !date || !venue || !location || !seatCap) {
       showToast('Please fill in all fields before creating the event.', 'error');
       return;
     }
@@ -1117,7 +1410,7 @@ export async function initOrganizerDashboard() {
 
     try {
       await createEvent({ 
-        title, description, category, date, venue, seatCap, posterFile: selectedPosterFile,
+        title, description, category, date, venue, location, format, seatCap, posterFile: selectedPosterFile,
         regDeadline, teamSize, tracks, eligibility, timeline, prizes, faqs
       });
       showToast('Event live! 🚀 Students can register now.', 'success');

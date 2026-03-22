@@ -8,12 +8,13 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/components.css">
+  <script src="js/theme.js"></script>
   <script type="module" src="js/firebase-config.js"></script>
 </head>
 <body data-page="student-dashboard" class="dashboard-page dashboard-page-student">
   <nav class="navbar navbar-expand-lg sticky-top eventdesk-navbar">
     <div class="container">
-      <a class="navbar-brand eventdesk-logo" href="index.html">EventDesk</a>
+      <a class="navbar-brand eventdesk-logo" href="student-dashboard.html">EventDesk</a>
       <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#studentNav" aria-controls="studentNav" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
@@ -21,6 +22,9 @@
         <ul class="navbar-nav ms-auto gap-lg-3 align-items-lg-center">
           <li class="nav-item"><a class="nav-link" href="events.html">Events</a></li>
           <li class="nav-item"><a class="nav-link" href="leaderboard.html">Leaderboard</a></li>
+          <li class="nav-item nav-theme-toggle">
+            <button type="button" class="theme-toggle-inline" data-theme-toggle="true" aria-label="Toggle color theme"></button>
+          </li>
           <li class="nav-item"><button id="studentSignOutButton" class="btn btn-outline-primary">Sign Out</button></li>
         </ul>
       </div>
@@ -65,38 +69,37 @@
                     <strong>Stay ahead of your next campus moment</strong>
                     <p>Queue, QR, attendance, and certificates all flow through this board.</p>
                   </div>
-                  <div class="student-hero-bars" aria-hidden="true">
-                    <span></span>
-                    <span></span>
-                    <span></span>
-                    <span></span>
+                  <div class="student-hero-route" aria-hidden="true">
+                    <span class="student-route-line"></span>
+                    <div class="student-route-stop is-active">
+                      <strong>01</strong>
+                      <span>Register</span>
+                    </div>
+                    <div class="student-route-stop">
+                      <strong>02</strong>
+                      <span>Attend</span>
+                    </div>
+                    <div class="student-route-stop">
+                      <strong>03</strong>
+                      <span>Unlock</span>
+                    </div>
+                  </div>
+                  <div class="student-hero-metric-card" aria-hidden="true">
+                    <span>Live board</span>
+                    <strong>One smooth student flow</strong>
+                    <div class="student-metric-bars">
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                    </div>
                   </div>
                 </div>
                 <div class="student-stage-card stage-card-float">
-                  <span>Dashboard flow</span>
-                  <strong>Register</strong>
-                  <strong>Attend</strong>
-                  <strong>Unlock</strong>
+                  <span>Quick glance</span>
+                  <strong>QR ready</strong>
+                  <strong>Attendance live</strong>
+                  <strong>Cert next</strong>
                 </div>
-                <svg class="student-hero-orbit" viewBox="0 0 420 320" aria-hidden="true">
-                  <defs>
-                    <linearGradient id="studentWave" x1="0%" x2="100%" y1="0%" y2="100%">
-                      <stop offset="0%" stop-color="#4C7CFF"></stop>
-                      <stop offset="100%" stop-color="#79A8FF"></stop>
-                    </linearGradient>
-                    <linearGradient id="studentWaveSoft" x1="0%" x2="100%" y1="0%" y2="100%">
-                      <stop offset="0%" stop-color="#FF7B57"></stop>
-                      <stop offset="100%" stop-color="#FFB36B"></stop>
-                    </linearGradient>
-                  </defs>
-                  <circle cx="300" cy="88" r="78" fill="rgba(76,124,255,0.12)"></circle>
-                  <circle cx="120" cy="248" r="54" fill="rgba(255,123,87,0.18)"></circle>
-                  <path d="M48 236C102 190 136 210 174 176C218 137 242 120 292 131C330 139 356 171 374 182" fill="none" stroke="url(#studentWave)" stroke-width="12" stroke-linecap="round"></path>
-                  <path d="M82 86C136 58 194 60 248 99C289 129 321 137 358 127" fill="none" stroke="url(#studentWaveSoft)" stroke-width="10" stroke-linecap="round" stroke-dasharray="4 20"></path>
-                  <circle cx="172" cy="178" r="10" fill="#4C7CFF"></circle>
-                  <circle cx="286" cy="132" r="12" fill="#FF7B57"></circle>
-                  <circle cx="356" cy="127" r="8" fill="#111827"></circle>
-                </svg>
               </div>
             </div>
           </div>

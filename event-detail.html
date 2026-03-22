@@ -8,6 +8,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/components.css">
+  <script src="js/theme.js"></script>
   <script type="module" src="js/firebase-config.js"></script>
 </head>
 <body data-page="event-detail">
@@ -18,10 +19,13 @@
         <span class="navbar-toggler-icon"></span>
       </button>
       <div class="collapse navbar-collapse" id="detailNav">
-        <ul class="navbar-nav ms-auto gap-lg-3">
+        <ul class="navbar-nav ms-auto gap-lg-3 align-items-lg-center">
           <li class="nav-item"><a class="nav-link" href="events.html">Events</a></li>
           <li class="nav-item"><a class="nav-link" href="leaderboard.html">Leaderboard</a></li>
           <li class="nav-item"><a class="nav-link" href="login.html">Login</a></li>
+          <li class="nav-item nav-theme-toggle">
+            <button type="button" class="theme-toggle-inline" data-theme-toggle="true" aria-label="Toggle color theme"></button>
+          </li>
         </ul>
       </div>
     </div>
@@ -47,11 +51,30 @@
             <div class="detail-meta-item"><span>📅</span> <strong>Date</strong><p id="detailDate">March 28 2026</p></div>
             <div class="detail-meta-item"><span>⏰</span> <strong>Time</strong><p id="detailTime">3:00 PM</p></div>
             <div class="detail-meta-item"><span>📍</span> <strong>Venue</strong><p id="detailVenue">Seminar Hall B</p></div>
-            <div class="detail-meta-item"><span>🏷️</span> <strong>Category</strong><p id="detailCategoryText">Workshop</p></div>
+            <div class="detail-meta-item"><span>🏷️</span> <strong>Type</strong><p id="detailCategoryText">Workshop</p></div>
           </div>
 
           <div id="detailDynamicMeta" class="d-flex flex-wrap gap-2 mt-4 d-none">
             <!-- Dynamic tags like Team Size, Deadline, Tracks, Eligibility go here -->
+          </div>
+
+          <div class="detail-fact-grid mt-4">
+            <div class="detail-fact-card">
+              <span>Registration Deadline</span>
+              <strong id="detailDeadline">Opens with event details</strong>
+            </div>
+            <div class="detail-fact-card">
+              <span>Mode</span>
+              <strong id="detailFormat">Offline</strong>
+            </div>
+            <div class="detail-fact-card">
+              <span>Location</span>
+              <strong id="detailLocation">Campus</strong>
+            </div>
+            <div class="detail-fact-card">
+              <span>Participation</span>
+              <strong id="detailParticipation">Individual</strong>
+            </div>
           </div>
 
           <div id="detailExtendedSections" class="mt-5 pt-3 border-top d-none">
@@ -75,8 +98,8 @@
             <div class="card-body p-4">
               <div class="d-flex justify-content-between align-items-end mb-3">
                 <div>
-                  <p class="detail-seat-count mb-1"><span id="registeredCount">0</span> / <span id="seatCap">0</span> Seats Taken</p>
-                  <span id="spotsBadge" class="badge badge-warning-soft">0 spots left</span>
+                  <p class="detail-seat-count mb-1"><span id="registeredCount">0</span> / <span id="seatCap">0</span> Registrations</p>
+                  <span id="spotsBadge" class="badge badge-warning-soft">0 slots left</span>
                 </div>
               </div>
               <div class="seat-progress large mb-2">
@@ -121,7 +144,27 @@
                 <input type="tel" id="registrationPhone" class="form-control" placeholder="10-digit mobile number" maxlength="10" required>
                 <div id="registrationPhoneError" class="field-error d-none">Phone number please 📞</div>
               </div>
-              <button type="submit" class="btn btn-primary w-100 mt-4">Confirm Registration 🎟️</button>
+              <div id="teamRegistrationFields" class="team-registration-panel mt-4 d-none">
+                <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+                  <div>
+                    <h3 class="h6 mb-1">Team Registration</h3>
+                    <p id="teamRegistrationHint" class="text-muted mb-0">This opportunity supports team entries.</p>
+                  </div>
+                  <span id="teamRegistrationBadge" class="badge badge-soft">Team up</span>
+                </div>
+                <div class="row g-3 mt-1">
+                  <div class="col-md-6">
+                    <label for="teamName" class="form-label">Team Name</label>
+                    <input type="text" id="teamName" class="form-control" placeholder="Your team name">
+                  </div>
+                  <div class="col-md-6">
+                    <label for="teamMemberCount" class="form-label">Participants</label>
+                    <select id="teamMemberCount" class="form-select"></select>
+                  </div>
+                </div>
+                <div id="teamMembersFields" class="team-members-grid mt-3"></div>
+              </div>
+              <button type="submit" class="btn btn-primary w-100 mt-4">Confirm Registration</button>
               <button type="button" class="btn btn-link text-muted w-100 mt-2" data-bs-dismiss="modal">Cancel ↩️</button>
             </form>
           </div>

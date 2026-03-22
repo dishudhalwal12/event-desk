@@ -8,11 +8,16 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/components.css">
+  <script src="js/theme.js"></script>
   <script type="module" src="js/firebase-config.js"></script>
 </head>
 <body data-page="signup">
   <main class="auth-shell">
     <div class="container">
+      <div class="auth-topbar">
+        <a href="index.html" class="eventdesk-logo">EventDesk</a>
+        <button type="button" class="theme-toggle-inline" data-theme-toggle="true" aria-label="Toggle color theme"></button>
+      </div>
       <div class="row align-items-center min-vh-100 g-5">
         <div class="col-lg-6 d-none d-lg-block">
           <div class="auth-illustration-wrap">
@@ -22,7 +27,6 @@
         <div class="col-lg-5 ms-lg-auto">
           <div class="card auth-card">
             <div class="card-body p-4 p-lg-5">
-              <a href="index.html" class="eventdesk-logo d-inline-block mb-4">EventDesk</a>
               <div id="roleSelectionStep">
                 <h1 class="auth-title text-center">Join EventDesk! 🎉</h1>
                 <p class="auth-subtitle text-center">Tell us who you are first.</p>
