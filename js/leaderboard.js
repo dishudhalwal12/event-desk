@@ -6,14 +6,6 @@ import {
 import { auth, db } from './firebase-config.js';
 import { hideLoadingSpinner, showLoadingSpinner } from './utils.js';
 
-const fallbackLeaderboard = [
-  { userId: 'sample-1', name: 'Aarav Patel', count: 12 },
-  { userId: 'sample-2', name: 'Sneha Rao', count: 10 },
-  { userId: 'sample-3', name: 'Reyansh Kapoor', count: 9 },
-  { userId: 'sample-4', name: 'Isha Nair', count: 8 },
-  { userId: 'sample-5', name: 'Vivaan Mehta', count: 7 }
-];
-
 function getRankLabel(index) {
   if (index === 0) return '🥇';
   if (index === 1) return '🥈';
@@ -77,8 +69,8 @@ export async function getLeaderboardData() {
     const attendanceSnapshot = await getDocs(collection(db, 'attendance'));
     return await hydrateLeaderboard(attendanceSnapshot.docs.map((item) => item.data()));
   } catch (error) {
-    console.warn('Leaderboard fallback:', error);
-    return fallbackLeaderboard;
+    console.warn('Leaderboard unavailable:', error);
+    return [];
   }
 }
 
@@ -93,6 +85,15 @@ export async function loadLeaderboardPreview(targetId) {
   if (!tbody) return;
   const entries = await getLeaderboardData();
   const preview = entries.slice(0, 5);
+
+  if (!preview.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="3" class="text-center text-muted py-4">Verified attendance will appear here after the first check-in.</td>
+      </tr>
+    `;
+    return;
+  }
 
   tbody.innerHTML = preview.map((entry, index) => `
     <tr>
@@ -114,6 +115,30 @@ export async function loadLeaderboardPreview(targetId) {
   `).join('');
 }
 
+function renderLeaderboardEmptyState() {
+  const tbody = document.getElementById('leaderboardTableBody');
+  if (tbody) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="4" class="text-center text-muted py-5">No verified attendance has been recorded yet. The leaderboard will fill itself once organizers start scanning confirmed registrations.</td>
+      </tr>
+    `;
+  }
+
+  const podiumEntries = [
+    { id: 'podiumFirst', name: 'No attendance yet', count: 'Waiting for the first check-in' },
+    { id: 'podiumSecond', name: 'No attendance yet', count: 'Waiting for the first check-in' },
+    { id: 'podiumThird', name: 'No attendance yet', count: 'Waiting for the first check-in' }
+  ];
+
+  podiumEntries.forEach((entry) => {
+    const root = document.getElementById(entry.id);
+    if (!root) return;
+    root.querySelector('.podium-name').textContent = entry.name;
+    root.querySelector('.podium-count').textContent = entry.count;
+  });
+}
+
 function renderLeaderboardPage(entries) {
   const tbody = document.getElementById('leaderboardTableBody');
   const template = document.getElementById('leaderboardRowTemplate');
@@ -121,6 +146,11 @@ function renderLeaderboardPage(entries) {
 
   tbody.innerHTML = '';
   const activeUserId = auth.currentUser?.uid;
+
+  if (!entries.length) {
+    renderLeaderboardEmptyState();
+    return;
+  }
 
   entries.forEach((entry, index) => {
     const fragment = template.content.cloneNode(true);
@@ -165,7 +195,7 @@ export async function initLeaderboardPage() {
       collection(db, 'attendance'),
       async (snapshot) => {
         const entries = await hydrateLeaderboard(snapshot.docs.map((item) => item.data()));
-        renderLeaderboardPage(entries.length ? entries : fallbackLeaderboard);
+        renderLeaderboardPage(entries);
         hideLoadingSpinner('leaderboardLoader', '');
       },
       async () => {

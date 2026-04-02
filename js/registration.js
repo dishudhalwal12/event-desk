@@ -19,6 +19,7 @@ import { sendConfirmationEmail, sendWaitlistNotification } from './email.js';
 import {
   formatDate,
   formatShortDate,
+  getCampusEventRegistrationState,
   getInitials,
   hasCustomPoster,
   hideLoadingSpinner,
@@ -138,6 +139,18 @@ function buildTeamPayload(userId, userProfile, phone, teamOptions = {}) {
   };
 }
 
+function buildRegistrationQrCode(registrationId, userId, eventId) {
+  return JSON.stringify({ regId: registrationId, userId, eventId });
+}
+
+function assertEventAcceptsRegistrations(eventData) {
+  const registrationState = getCampusEventRegistrationState(eventData);
+  if (!registrationState.registrationClosed) {
+    return registrationState;
+  }
+  throw new Error(registrationState.message);
+}
+
 export async function addToWaitlist(userId, eventId, phone, teamOptions = {}) {
   const existingRegistration = await getExistingRegistration(userId, eventId);
   if (existingRegistration?.data()?.status === 'waitlisted') {
@@ -146,6 +159,20 @@ export async function addToWaitlist(userId, eventId, phone, teamOptions = {}) {
       position: existingRegistration.data().waitlistPos,
       registrationId: existingRegistration.id
     };
+  }
+
+  const eventSnapshot = await getEventSnapshot(eventId);
+  const eventData = eventSnapshot.exists() ? eventSnapshot.data() : null;
+  if (!eventData) {
+    throw new Error('Event not found');
+  }
+
+  const registrationState = assertEventAcceptsRegistrations(eventData);
+  if (!registrationState.canJoinWaitlist) {
+    if (registrationState.canRegister) {
+      throw new Error('Seats are still open. Register directly instead of joining the waitlist.');
+    }
+    throw new Error(registrationState.message);
   }
 
   const userProfile = await fetchUserProfile(userId);
@@ -166,7 +193,7 @@ export async function addToWaitlist(userId, eventId, phone, teamOptions = {}) {
     name: userProfile?.name || 'Student',
     email: auth.currentUser?.email || userProfile?.email || '',
     phone,
-    qrCode: JSON.stringify({ regId: registrationRef.id, userId, eventId }),
+    qrCode: null,
     teamName: teamPayload.teamName || null,
     participantCount: teamPayload.participantCount,
     teamMembers: teamPayload.teamMembers,
@@ -190,6 +217,8 @@ export async function registerStudent(userId, eventId, phone, teamOptions = {}) 
     throw new Error('Event not found');
   }
 
+  assertEventAcceptsRegistrations(eventData);
+
   const existingRegistration = await getExistingRegistration(userId, eventId);
   if (existingRegistration) {
     const data = existingRegistration.data();
@@ -211,12 +240,16 @@ export async function registerStudent(userId, eventId, phone, teamOptions = {}) 
     }
 
     const currentData = currentEvent.data();
+    const registrationState = assertEventAcceptsRegistrations(currentData);
     if (currentData.registeredCount >= currentData.seatCap) {
+      if (!registrationState.canJoinWaitlist) {
+        throw new Error(registrationState.message);
+      }
       shouldWaitlist = true;
       return;
     }
 
-    const qrCode = JSON.stringify({ regId: registrationRef.id, userId, eventId });
+    const qrCode = buildRegistrationQrCode(registrationRef.id, userId, eventId);
     transaction.set(registrationRef, {
       registrationId: registrationRef.id,
       userId,
@@ -248,7 +281,7 @@ export async function registerStudent(userId, eventId, phone, teamOptions = {}) 
     eventData.title,
     formatDate(eventData.date),
     eventData.venue,
-    JSON.stringify({ regId: registrationRef.id, userId, eventId })
+    buildRegistrationQrCode(registrationRef.id, userId, eventId)
   ).catch((error) => console.warn('Email skipped:', error));
 
   return { success: true, registrationId: registrationRef.id };
@@ -297,13 +330,20 @@ export async function promoteFromWaitlist(eventId, registrationId) {
     const registration = registrationSnapshot.data();
     const eventData = eventSnapshot.data();
 
+    assertEventAcceptsRegistrations(eventData);
+
+    if (registration.status !== 'waitlisted') {
+      throw new Error('Only waitlisted registrations can be promoted.');
+    }
+
     if (eventData.registeredCount >= eventData.seatCap) {
       throw new Error('This event is full 😔 Try the waitlist!');
     }
 
     transaction.update(registrationRef, {
       status: 'registered',
-      waitlistPos: null
+      waitlistPos: null,
+      qrCode: buildRegistrationQrCode(registrationId, registration.userId, eventId)
     });
     transaction.update(eventRef, {
       registeredCount: eventData.registeredCount + 1
@@ -610,7 +650,7 @@ function renderStudentDashboardItems(items, userProfile, qrModal, onCertificateS
       button.className = 'btn btn-outline-primary';
       button.textContent = 'View QR Code 📱';
       button.addEventListener('click', () => {
-        renderQrCode(item.qrCode);
+        renderQrCode(item.qrCode || buildRegistrationQrCode(item.registrationId, item.userId, item.eventId));
         qrModalTitle.textContent = 'Your Event QR 📱';
         qrEventName.textContent = item.event?.title || 'Event';
         saveQrButton.onclick = downloadQrImage;

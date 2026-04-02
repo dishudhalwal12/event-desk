@@ -11,18 +11,14 @@ import {
   updateDoc,
   where
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
-import {
-  getDownloadURL,
-  ref as storageRef,
-  uploadBytes
-} from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js';
-import { auth, db, storage } from './firebase-config.js';
+import { auth, db } from './firebase-config.js';
 import { checkAuth, fetchUserProfile, signOutUser } from './auth.js';
 import { initScanner, stopScanner } from './attendance.js';
 import { promoteFromWaitlist, registerStudent } from './registration.js';
 import {
   formatDate,
   formatShortDate,
+  getCampusEventRegistrationState,
   getCountdown,
   getInitials,
   getQueryParam,
@@ -31,6 +27,7 @@ import {
   hideLoadingSpinner,
   showLoadingSpinner,
   showToast,
+  toDateValue,
   validateEmail,
   validatePhone
 } from './utils.js';
@@ -56,103 +53,10 @@ import {
 let eventsCountdownTimer = null;
 let detailCountdownTimer = null;
 const MAX_POSTER_SIZE_BYTES = 5 * 1024 * 1024;
+const MAX_POSTER_EDGE_PX = 1280;
+const MAX_EMBEDDED_POSTER_LENGTH = 420000;
 const VALID_POSTER_TYPES = ['image/jpeg', 'image/png'];
-
-const fallbackEvents = [
-  {
-    id: 'sample-tech-summit',
-    eventId: 'sample-tech-summit',
-    title: 'BuildSprint AI Hackathon',
-    description: 'Ship an AI-first product, present it to mentors, and compete for prizes in a fast-paced campus hackathon.',
-    category: 'Hackathon',
-    date: new Date('2026-03-28T15:00:00'),
-    venue: 'Innovation Lab, Block C',
-    location: 'Bengaluru',
-    format: 'Hybrid',
-    seatCap: 60,
-    registeredCount: 48,
-    posterUrl: 'assets/images/hero.png',
-    organizerId: 'sample-organizer-1',
-    organizerName: 'Campus Organizer',
-    regDeadline: new Date('2026-03-26T23:00:00'),
-    teamSize: 4,
-    tracks: ['AI', 'Product', 'Frontend'],
-    eligibility: ['Undergraduate', 'Postgraduate'],
-    timeline: 'Round 1: Idea submission\nRound 2: Prototype build\nRound 3: Final demo day',
-    prizes: 'Winner: INR 40,000\nRunner-up: INR 20,000\nSpecial mention: Internship interviews',
-    faqs: 'Teams can have up to four members. The final showcase is on campus for shortlisted teams.',
-    status: 'Upcoming'
-  },
-  {
-    id: 'sample-case-comp',
-    eventId: 'sample-case-comp',
-    title: 'MarketPulse Case Competition',
-    description: 'Solve a live growth challenge, submit a deck, and pitch your recommendations to a mixed industry panel.',
-    category: 'Competition',
-    date: new Date('2026-03-30T11:00:00'),
-    venue: 'Management Auditorium',
-    location: 'Pune',
-    format: 'Offline',
-    seatCap: 90,
-    registeredCount: 52,
-    posterUrl: 'assets/images/hero.png',
-    organizerId: 'sample-organizer-2',
-    organizerName: 'Business Club',
-    regDeadline: new Date('2026-03-27T21:00:00'),
-    teamSize: 4,
-    tracks: ['Marketing', 'Strategy'],
-    eligibility: ['MBA', 'Engineering Students'],
-    timeline: 'Round 1: Quiz\nRound 2: Deck submission\nRound 3: Final presentation',
-    prizes: 'Winner: INR 25,000\nRunner-up: INR 12,000',
-    status: 'Upcoming'
-  },
-  {
-    id: 'sample-product-internship',
-    eventId: 'sample-product-internship',
-    title: 'Campus Product Internship Drive',
-    description: 'Apply for a shortlisting round, learn about the role, and unlock interviews for a summer product internship.',
-    category: 'Internship',
-    date: new Date('2026-04-02T14:00:00'),
-    venue: 'Career Center',
-    location: 'Remote',
-    format: 'Online',
-    seatCap: 180,
-    registeredCount: 133,
-    posterUrl: 'assets/images/hero.png',
-    organizerId: 'sample-organizer-3',
-    organizerName: 'Career Cell',
-    regDeadline: new Date('2026-03-31T18:00:00'),
-    teamSize: 1,
-    tracks: ['Product', 'Analytics'],
-    eligibility: ['Final Year', 'Recent Graduates'],
-    timeline: 'Stage 1: Profile screening\nStage 2: Product assessment\nStage 3: Interview shortlist',
-    prizes: 'Internship stipend and pre-placement interview opportunities.',
-    status: 'Upcoming'
-  },
-  {
-    id: 'sample-design-lab',
-    eventId: 'sample-design-lab',
-    title: 'Design Sprint Lab',
-    description: 'A hands-on workshop for UI, prototyping, and quick critique rounds with mentor feedback.',
-    category: 'Workshop',
-    date: new Date('2026-03-30T11:00:00'),
-    venue: 'Innovation Studio',
-    location: 'Delhi',
-    format: 'Offline',
-    seatCap: 40,
-    registeredCount: 18,
-    posterUrl: 'assets/images/hero.png',
-    organizerId: 'sample-organizer-1',
-    organizerName: 'Design Club',
-    regDeadline: new Date('2026-03-29T17:00:00'),
-    teamSize: 1,
-    tracks: ['UI/UX', 'Prototyping'],
-    eligibility: ['All'],
-    timeline: 'Live critique circles and rapid redesign rounds through the day.',
-    prizes: 'Certificate and portfolio review slots.',
-    status: 'Upcoming'
-  }
-];
+const POSTER_STATUS_IDLE = 'No file selected. EventDesk will optimize and save your poster directly in Firestore.';
 
 function splitCommaValues(value) {
   if (Array.isArray(value)) return value.filter(Boolean);
@@ -279,14 +183,47 @@ function validatePosterFile(file) {
   return '';
 }
 
-async function uploadEventPoster(eventId, file) {
-  const extension = file.type === 'image/png' ? 'png' : 'jpg';
-  const posterRef = storageRef(storage, `event-posters/${auth.currentUser.uid}/${eventId}.${extension}`);
-  await uploadBytes(posterRef, file, {
-    contentType: file.type,
-    cacheControl: 'public,max-age=3600'
+function readPosterFile(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(new Error('Could not read the selected poster.'));
+    reader.readAsDataURL(file);
   });
-  return getDownloadURL(posterRef);
+}
+
+function loadPosterImage(source) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Could not process the selected poster.'));
+    image.src = source;
+  });
+}
+
+async function uploadEventPoster(_eventId, file) {
+  const source = await readPosterFile(file);
+  const image = await loadPosterImage(source);
+  const scale = Math.min(1, MAX_POSTER_EDGE_PX / Math.max(image.width || 1, image.height || 1));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round((image.width || 1) * scale));
+  canvas.height = Math.max(1, Math.round((image.height || 1) * scale));
+  const context = canvas.getContext('2d');
+
+  if (!context) {
+    throw new Error('Poster editor is not available in this browser.');
+  }
+
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+
+  for (const quality of [0.86, 0.78, 0.7, 0.62, 0.54, 0.46, 0.38]) {
+    const embeddedPoster = canvas.toDataURL('image/jpeg', quality);
+    if (embeddedPoster.length <= MAX_EMBEDDED_POSTER_LENGTH) {
+      return embeddedPoster;
+    }
+  }
+
+  throw new Error('Poster is too large for the free plan. Try a smaller JPG/PNG or crop it before uploading.');
 }
 
 function applyEventPosterPresentation(event, imageElement, fallbackElement) {
@@ -316,14 +253,11 @@ function applyEventPosterPresentation(event, imageElement, fallbackElement) {
 }
 
 function getEventDateValue(event) {
-  if (typeof event?.date?.toDate === 'function') {
-    return event.date.toDate();
-  }
-  return new Date(event?.date);
+  return toDateValue(event?.date);
 }
 
 function formatTimeValue(timestamp) {
-  const date = typeof timestamp?.toDate === 'function' ? timestamp.toDate() : new Date(timestamp);
+  const date = toDateValue(timestamp) || new Date();
   return new Intl.DateTimeFormat('en-IN', {
     hour: 'numeric',
     minute: '2-digit'
@@ -599,14 +533,14 @@ export async function getEvents(filters = {}) {
 
     return filterEvents(allEvents, filters);
   } catch (error) {
-    console.warn('Using fallback events:', error);
-    return filterEvents(fallbackEvents.map((item) => normalizeEvent(item)), filters);
+    console.warn('Campus events unavailable:', error);
+    return filterEvents([], filters);
   }
 }
 
-async function getCampusEventById(eventId, { fallback = true } = {}) {
+async function getCampusEventById(eventId) {
   if (!eventId) {
-    return fallback ? normalizeEvent(fallbackEvents[0]) : null;
+    return null;
   }
 
   try {
@@ -615,15 +549,9 @@ async function getCampusEventById(eventId, { fallback = true } = {}) {
       return normalizeEvent({ id: snapshot.id, ...snapshot.data() });
     }
   } catch (error) {
-    console.warn('Fallback event detail:', error);
+    console.warn('Campus event detail unavailable:', error);
   }
-
-  if (!fallback) {
-    return null;
-  }
-
-  const fallbackEvent = fallbackEvents.find((item) => item.id === eventId) || fallbackEvents[0];
-  return normalizeEvent(fallbackEvent);
+  return null;
 }
 
 export async function getEventById(eventId) {
@@ -667,6 +595,8 @@ export async function initEventsPage() {
   let externalSyncStatus = null;
   let campusReady = false;
   let externalReady = false;
+  let campusLoadError = false;
+  let externalLoadError = false;
   const emptyStateTitle = document.getElementById('eventsEmptyStateTitle');
   const emptyStateCopy = document.getElementById('eventsEmptyStateCopy');
 
@@ -729,6 +659,14 @@ export async function initEventsPage() {
       metaBits.push(`Unstop synced ${formatDate(externalSyncStatus.lastSuccessAt)}`);
     }
 
+    if (campusLoadError && currentSource !== 'external') {
+      metaBits.push('Campus feed unavailable right now');
+    }
+
+    if (externalLoadError && currentSource !== 'campus') {
+      metaBits.push('External feed unavailable right now');
+    }
+
     if (resultMeta) {
       resultMeta.textContent = metaBits.join(' ');
     }
@@ -741,6 +679,24 @@ export async function initEventsPage() {
   const updateEmptyStateCopy = (visibleEvents) => {
     if (!emptyStateTitle || !emptyStateCopy) return;
     if (visibleEvents.length) return;
+
+    if (currentSource === 'campus' && campusLoadError) {
+      emptyStateTitle.textContent = 'Campus events are unavailable right now.';
+      emptyStateCopy.textContent = 'EventDesk could not reach the live campus feed. Check Firestore access or refresh the page.';
+      return;
+    }
+
+    if (currentSource === 'external' && externalLoadError) {
+      emptyStateTitle.textContent = 'External opportunities are unavailable right now.';
+      emptyStateCopy.textContent = 'EventDesk could not reach the synced external feed. Refresh after Firestore is back online.';
+      return;
+    }
+
+    if ((campusLoadError || externalLoadError) && !allEvents.length) {
+      emptyStateTitle.textContent = 'Live data is unavailable right now.';
+      emptyStateCopy.textContent = 'EventDesk could not reach Firestore for the live feed. Check the connection or Firebase rules, then refresh.';
+      return;
+    }
 
     if (currentSource === 'external' && !externalEvents.length) {
       emptyStateTitle.textContent = 'No external opportunities synced yet.';
@@ -782,12 +738,14 @@ export async function initEventsPage() {
 
   subscribeToEvents(
     (events) => {
+      campusLoadError = false;
       campusEvents = events;
       campusReady = true;
       refreshFeed();
     },
     async (error) => {
-      console.warn('Live events fallback:', error);
+      console.warn('Live campus feed unavailable:', error);
+      campusLoadError = true;
       campusEvents = await getEvents();
       campusReady = true;
       refreshFeed();
@@ -796,12 +754,14 @@ export async function initEventsPage() {
 
   subscribeToExternalEvents(
     (events) => {
+      externalLoadError = false;
       externalEvents = events;
       externalReady = true;
       refreshFeed();
     },
     (error) => {
       console.warn('External opportunities skipped:', error);
+      externalLoadError = true;
       externalEvents = [];
       externalReady = true;
       refreshFeed();
@@ -897,6 +857,8 @@ export async function initEventDetailPage() {
   const registerButton = document.getElementById('registerButton');
   const waitlistButton = document.getElementById('waitlistButton');
   const registrationForm = document.getElementById('registrationForm');
+  const registrationSubmitButton = registrationForm?.querySelector('button[type="submit"]');
+  const registrationCancelButton = registrationForm?.querySelector('[data-bs-dismiss="modal"]');
   const phoneInput = document.getElementById('registrationPhone');
   const phoneError = document.getElementById('registrationPhoneError');
   const formState = document.getElementById('registrationFormState');
@@ -919,6 +881,7 @@ export async function initEventDetailPage() {
   const detailExternalStatsWrap = document.getElementById('detailExternalStatsWrap');
   const registrationActionWrap = document.getElementById('registrationActionWrap');
   const fullStateWrap = document.getElementById('fullStateWrap');
+  const fullStateCopy = fullStateWrap?.querySelector('.full-copy');
   const externalActionWrap = document.getElementById('externalActionWrap');
   const externalPrimaryButton = document.getElementById('externalPrimaryButton');
   const externalActionNote = document.getElementById('externalActionNote');
@@ -930,15 +893,34 @@ export async function initEventDetailPage() {
   const detailFaqsSectionTitle = document.querySelector('#sectionFaqsWrapper h3');
   const detailTimelineSectionTitle = document.querySelector('#sectionTimelineWrapper h3');
   const detailPrizesSectionTitle = document.querySelector('#sectionPrizesWrapper h3');
+  let registrationSubmitting = false;
+
+  const setRegistrationFormBusy = (isBusy, submitLabel = 'Confirm Registration') => {
+    if (registrationSubmitButton) {
+      if (!registrationSubmitButton.dataset.defaultText) {
+        registrationSubmitButton.dataset.defaultText = registrationSubmitButton.textContent;
+      }
+      registrationSubmitButton.disabled = isBusy;
+      registrationSubmitButton.textContent = isBusy
+        ? submitLabel
+        : registrationSubmitButton.dataset.defaultText;
+      registrationSubmitButton.setAttribute('aria-busy', String(isBusy));
+    }
+
+    if (registrationCancelButton) {
+      registrationCancelButton.disabled = isBusy;
+    }
+  };
+
   const resolveEvent = async () => {
     if (requestedType === 'external') {
       return (await getExternalEventById(eventId))
-        || (await getCampusEventById(eventId, { fallback: false }));
+        || (await getCampusEventById(eventId));
     }
 
-    return (await getCampusEventById(eventId, { fallback: false }))
+    return (await getCampusEventById(eventId))
       || (await getExternalEventById(eventId))
-      || (eventId ? null : normalizeEvent(fallbackEvents[0]));
+      || null;
   };
   let event = await resolveEvent();
   let liveRegisteredCount = event?.registeredCount || 0;
@@ -1195,7 +1177,7 @@ export async function initEventDetailPage() {
       if (teamFields && teamMemberCount && teamMembersFields) {
         if (teamLimit > 1) {
           teamFields.classList.remove('d-none');
-          teamHint.textContent = `This ${event.category.toLowerCase()} supports team participation with up to ${teamLimit} members.`;
+          teamHint.textContent = `This ${(event.category || 'event').toLowerCase()} supports team participation with up to ${teamLimit} members.`;
           teamBadge.textContent = `Up to ${teamLimit}`;
           teamMemberCount.innerHTML = Array.from({ length: teamLimit }, (_, index) => {
             const value = index + 1;
@@ -1237,12 +1219,32 @@ export async function initEventDetailPage() {
     }
 
     const seatStatus = updateSeatUI(registeredCount, event.seatCap);
+    const registrationState = getCampusEventRegistrationState({
+      ...event,
+      registeredCount
+    });
     document.getElementById('registeredCount').textContent = registeredCount;
     document.getElementById('seatCap').textContent = event.seatCap;
     document.getElementById('detailProgressFill').style.width = `${seatStatus.usedPercent}%`;
     document.getElementById('detailProgressFill').className = `seat-progress-fill ${seatStatus.colorClass === 'amber' ? 'amber' : seatStatus.colorClass === 'red' ? 'red' : ''}`.trim();
-    document.getElementById('detailProgressCopy').textContent = `${registeredCount} / ${event.seatCap} registrations`;
+    document.getElementById('detailProgressCopy').textContent = registrationState.registrationClosed
+      ? registrationState.message
+      : registrationState.canJoinWaitlist
+        ? `${registeredCount} / ${event.seatCap} registrations. Waitlist is open.`
+        : `${registeredCount} / ${event.seatCap} registrations`;
     const badge = document.getElementById('spotsBadge');
+    if (registrationState.registrationClosed) {
+      badge.textContent = registrationState.reason === 'completed' ? 'Completed' : 'Registrations closed';
+      badge.className = 'badge badge-soft';
+      if (fullStateCopy) {
+        fullStateCopy.textContent = registrationState.message;
+      }
+      waitlistButton?.classList.add('d-none');
+      registrationActionWrap.classList.add('d-none');
+      fullStateWrap.classList.remove('d-none');
+      return;
+    }
+
     badge.textContent = seatStatus.label;
     badge.className = seatStatus.colorClass === 'red'
       ? 'badge badge-danger-soft'
@@ -1250,9 +1252,19 @@ export async function initEventDetailPage() {
         ? 'badge badge-warning-soft'
         : 'badge badge-category';
 
-    const isFull = registeredCount >= event.seatCap;
-    registrationActionWrap.classList.toggle('d-none', isFull);
-    fullStateWrap.classList.toggle('d-none', !isFull);
+    if (registrationState.canJoinWaitlist) {
+      if (fullStateCopy) {
+        fullStateCopy.textContent = 'This event is full 😔';
+      }
+      waitlistButton?.classList.remove('d-none');
+      registrationActionWrap.classList.add('d-none');
+      fullStateWrap.classList.remove('d-none');
+      return;
+    }
+
+    waitlistButton?.classList.add('d-none');
+    registrationActionWrap.classList.remove('d-none');
+    fullStateWrap.classList.add('d-none');
   };
 
   renderEvent();
@@ -1260,7 +1272,10 @@ export async function initEventDetailPage() {
 
   if (eventId && !isExternalOpportunity(event)) {
     onSnapshot(doc(db, 'events', eventId), async (snapshot) => {
-      if (!snapshot.exists()) return;
+      if (!snapshot.exists()) {
+        renderUnavailableState();
+        return;
+      }
       event = normalizeEvent({ id: snapshot.id, ...snapshot.data() });
       liveRegisteredCount = event.registeredCount ?? liveRegisteredCount;
       renderEvent();
@@ -1273,6 +1288,15 @@ export async function initEventDetailPage() {
       if (event.sourceUrl) {
         window.open(event.sourceUrl, '_blank', 'noopener,noreferrer');
       }
+      return;
+    }
+
+    const registrationState = getCampusEventRegistrationState({
+      ...event,
+      registeredCount: liveRegisteredCount
+    });
+    if (!registrationState.canRegister && !registrationState.canJoinWaitlist) {
+      showToast(registrationState.message, 'warning');
       return;
     }
 
@@ -1289,6 +1313,9 @@ export async function initEventDetailPage() {
 
     document.getElementById('registrationName').value = profile.name || '';
     document.getElementById('registrationPhone').value = profile.phone || '';
+    document.getElementById('registrationModalTitle').textContent = registrationState.canJoinWaitlist
+      ? `Join waitlist for ${event.title}`
+      : `Register for ${event.title}`;
     phoneError.classList.add('d-none');
     formState.classList.remove('d-none');
     successState.classList.add('d-none');
@@ -1319,6 +1346,9 @@ export async function initEventDetailPage() {
 
   registrationForm?.addEventListener('submit', async (submitEvent) => {
     submitEvent.preventDefault();
+    if (registrationSubmitting) {
+      return;
+    }
     if (isExternalOpportunity(event)) {
       return;
     }
@@ -1365,6 +1395,16 @@ export async function initEventDetailPage() {
       teamPayload.teamMembers = additionalMembers;
     }
 
+    const registrationState = getCampusEventRegistrationState({
+      ...event,
+      registeredCount: liveRegisteredCount
+    });
+    registrationSubmitting = true;
+    setRegistrationFormBusy(
+      true,
+      registrationState.canJoinWaitlist ? 'Joining waitlist...' : 'Registering...'
+    );
+
     try {
       const result = await registerStudent(auth.currentUser.uid, event.id, phone, teamPayload);
       formState.classList.add('d-none');
@@ -1385,6 +1425,9 @@ export async function initEventDetailPage() {
       } else {
         showToast(error.message || 'Could not save your registration right now.', 'error');
       }
+    } finally {
+      registrationSubmitting = false;
+      setRegistrationFormBusy(false);
     }
   });
 
@@ -1396,6 +1439,8 @@ export async function initEventDetailPage() {
     formState.classList.remove('d-none');
     successState.classList.add('d-none');
     registrationForm.reset();
+    registrationSubmitting = false;
+    setRegistrationFormBusy(false);
     phoneError.classList.add('d-none');
     phoneInput.classList.remove('is-invalid');
     if (getNormalizedTeamSize(event) > 1) {
@@ -1767,6 +1812,9 @@ export async function initOrganizerDashboard() {
   });
 
   createEventButton?.addEventListener('click', () => createEventModal.show());
+  if (posterStatus) {
+    posterStatus.textContent = POSTER_STATUS_IDLE;
+  }
 
   const resetPosterSelection = () => {
     selectedPosterFile = null;
@@ -1778,7 +1826,7 @@ export async function initOrganizerDashboard() {
     if (posterPreviewImage) posterPreviewImage.src = '';
     posterPlaceholder?.classList.remove('d-none');
     if (posterInput) posterInput.value = '';
-    if (posterStatus) posterStatus.textContent = 'No file selected.';
+    if (posterStatus) posterStatus.textContent = POSTER_STATUS_IDLE;
   };
 
   const setPosterFile = (file) => {
@@ -1801,7 +1849,7 @@ export async function initOrganizerDashboard() {
     }
     posterPlaceholder?.classList.add('d-none');
     if (posterStatus) {
-      posterStatus.textContent = `${file.name} selected`;
+      posterStatus.textContent = `${file.name} selected. EventDesk will optimize and save it directly in Firestore.`;
     }
     return true;
   };
@@ -1876,6 +1924,16 @@ export async function initOrganizerDashboard() {
 
     if (!title || !description || !category || !date || !venue || !location || !seatCap) {
       showToast('Please fill in all fields before creating the event.', 'error');
+      return;
+    }
+
+    if (new Date(date).getTime() <= Date.now()) {
+      showToast('Choose an event date in the future.', 'error');
+      return;
+    }
+
+    if (regDeadline && new Date(regDeadline).getTime() > new Date(date).getTime()) {
+      showToast('Registration deadline must be before the event start time.', 'error');
       return;
     }
 

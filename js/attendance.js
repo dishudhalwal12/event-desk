@@ -58,6 +58,16 @@ export async function validateAndMarkAttendance(qrData, eventId) {
       return { success: false, reason: 'duplicate' };
     }
 
+    if (registrationData?.eventId !== eventId || registrationData?.userId !== parsed.userId) {
+      setScannerResult('error', 'This QR is not valid for this event ❌');
+      return { success: false, reason: 'mismatched-registration' };
+    }
+
+    if (registrationData?.status !== 'registered') {
+      setScannerResult('warning', `${studentName} is not confirmed for attendance yet ⏳`, 'Only confirmed registrations can be scanned.');
+      return { success: false, reason: 'not-confirmed' };
+    }
+
     await addDoc(collection(db, 'attendance'), {
       registrationId: parsed.regId,
       eventId,

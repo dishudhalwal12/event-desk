@@ -1,6 +1,18 @@
+export function toDateValue(value) {
+  if (!value) return null;
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+  if (typeof value?.toDate === 'function') {
+    return value.toDate();
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 export function formatDate(timestamp) {
-  if (!timestamp) return 'TBA';
-  const date = typeof timestamp?.toDate === 'function' ? timestamp.toDate() : new Date(timestamp);
+  const date = toDateValue(timestamp);
+  if (!date) return 'TBA';
   return new Intl.DateTimeFormat('en-IN', {
     day: 'numeric',
     month: 'long',
@@ -11,8 +23,8 @@ export function formatDate(timestamp) {
 }
 
 export function formatShortDate(timestamp) {
-  if (!timestamp) return 'TBA';
-  const date = typeof timestamp?.toDate === 'function' ? timestamp.toDate() : new Date(timestamp);
+  const date = toDateValue(timestamp);
+  if (!date) return 'TBA';
   return new Intl.DateTimeFormat('en-IN', {
     day: 'numeric',
     month: 'short',
@@ -21,7 +33,7 @@ export function formatShortDate(timestamp) {
 }
 
 export function getCountdown(eventTimestamp) {
-  const eventDate = typeof eventTimestamp?.toDate === 'function' ? eventTimestamp.toDate() : new Date(eventTimestamp);
+  const eventDate = toDateValue(eventTimestamp) || new Date();
   const diff = Math.max(eventDate.getTime() - Date.now(), 0);
   const days = Math.floor(diff / 86400000);
   const hours = Math.floor((diff % 86400000) / 3600000);
@@ -115,6 +127,49 @@ export function getSeatStatus(registeredCount = 0, seatCap = 0) {
   }
 
   return { remaining, percentage, label, colorClass, isUrgent };
+}
+
+export function getCampusEventRegistrationState(event, now = new Date()) {
+  const eventDate = toDateValue(event?.date);
+  const deadlineDate = toDateValue(event?.regDeadline) || eventDate;
+  const registeredCount = Math.max(Number(event?.registeredCount) || 0, 0);
+  const seatCap = Math.max(Number(event?.seatCap) || 0, 0);
+  const isFull = seatCap > 0 && registeredCount >= seatCap;
+  const status = String(event?.status || '').trim().toLowerCase();
+  const isCompleted = status === 'completed';
+  const hasStarted = eventDate ? eventDate.getTime() <= now.getTime() : false;
+  const deadlinePassed = deadlineDate ? deadlineDate.getTime() <= now.getTime() : false;
+
+  let reason = 'open';
+  let message = 'Registration is open.';
+
+  if (isCompleted) {
+    reason = 'completed';
+    message = 'This event has already been completed.';
+  } else if (hasStarted) {
+    reason = 'started';
+    message = 'Registration is closed because the event has already started.';
+  } else if (deadlinePassed) {
+    reason = 'deadline';
+    message = 'Registration is closed because the deadline has passed.';
+  } else if (isFull) {
+    reason = 'full';
+    message = 'This event is full. You can still join the waitlist.';
+  }
+
+  return {
+    eventDate,
+    deadlineDate,
+    isFull,
+    isCompleted,
+    hasStarted,
+    deadlinePassed,
+    registrationClosed: isCompleted || hasStarted || deadlinePassed,
+    canRegister: !isCompleted && !hasStarted && !deadlinePassed && !isFull,
+    canJoinWaitlist: !isCompleted && !hasStarted && !deadlinePassed && isFull,
+    reason,
+    message
+  };
 }
 
 export function checkOnline() {

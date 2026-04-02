@@ -1,18 +1,152 @@
-rules_version='2'
+rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      // This rule allows anyone with your database reference to view, edit,
-      // and delete all data in your database. It is useful for getting
-      // started, but it is configured to expire after 30 days because it
-      // leaves your app open to attackers. At that time, all client
-      // requests to your database will be denied.
-      //
-      // Make sure to write security rules for your app before that time, or
-      // else all client requests to your database will be denied until you
-      // update your rules.
-      allow read, write: if request.time < timestamp.date(2026, 4, 20);
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function hasUserProfile(userId) {
+      return exists(/databases/$(database)/documents/users/$(userId));
+    }
+
+    function userRole(userId) {
+      return hasUserProfile(userId)
+        ? get(/databases/$(database)/documents/users/$(userId)).data.role
+        : null;
+    }
+
+    function requestRole() {
+      return signedIn() ? userRole(request.auth.uid) : null;
+    }
+
+    function eventExists(eventId) {
+      return exists(/databases/$(database)/documents/events/$(eventId));
+    }
+
+    function eventData(eventId) {
+      return get(/databases/$(database)/documents/events/$(eventId)).data;
+    }
+
+    function registrationExists(registrationId) {
+      return exists(/databases/$(database)/documents/registrations/$(registrationId));
+    }
+
+    function registrationData(registrationId) {
+      return get(/databases/$(database)/documents/registrations/$(registrationId)).data;
+    }
+
+    function isEventOwner(eventId) {
+      return signedIn()
+        && eventExists(eventId)
+        && eventData(eventId).organizerId == request.auth.uid;
+    }
+
+    match /users/{userId} {
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.uid == userId
+        && (request.resource.data.role == 'student' || request.resource.data.role == 'organizer');
+
+      allow read, update: if signedIn() && request.auth.uid == userId;
+    }
+
+    match /events/{eventId} {
+      allow read: if true;
+
+      allow create: if signedIn()
+        && requestRole() == 'organizer'
+        && request.resource.data.eventId == eventId
+        && request.resource.data.organizerId == request.auth.uid;
+
+      allow update: if signedIn() && (
+        (
+          requestRole() == 'organizer'
+          && resource.data.organizerId == request.auth.uid
+          && request.resource.data.eventId == resource.data.eventId
+          && request.resource.data.organizerId == resource.data.organizerId
+        )
+        ||
+        (
+          requestRole() == 'student'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['registeredCount'])
+          && request.resource.data.registeredCount is int
+          && resource.data.registeredCount is int
+          && request.resource.data.registeredCount >= 0
+          && request.resource.data.registeredCount >= resource.data.registeredCount - 1
+          && request.resource.data.registeredCount <= resource.data.registeredCount + 1
+          && request.resource.data.eventId == resource.data.eventId
+          && request.resource.data.organizerId == resource.data.organizerId
+          && request.resource.data.status == resource.data.status
+        )
+      );
+    }
+
+    match /registrations/{registrationId} {
+      allow create: if signedIn()
+        && requestRole() == 'student'
+        && request.resource.data.registrationId == registrationId
+        && request.resource.data.userId == request.auth.uid
+        && eventExists(request.resource.data.eventId)
+        && (
+          request.resource.data.status == 'registered'
+          || request.resource.data.status == 'waitlisted'
+        );
+
+      allow read: if signedIn()
+        && (
+          resource.data.userId == request.auth.uid
+          || isEventOwner(resource.data.eventId)
+        );
+
+      allow update: if signedIn() && (
+        (
+          resource.data.userId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+          && request.resource.data.status == 'cancelled'
+          && (
+            resource.data.status == 'registered'
+            || resource.data.status == 'waitlisted'
+          )
+        )
+        ||
+        (
+          isEventOwner(resource.data.eventId)
+          && resource.data.status == 'waitlisted'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'waitlistPos', 'qrCode'])
+          && request.resource.data.status == 'registered'
+          && request.resource.data.waitlistPos == null
+          && request.resource.data.userId == resource.data.userId
+          && request.resource.data.eventId == resource.data.eventId
+          && request.resource.data.registrationId == resource.data.registrationId
+          && request.resource.data.name == resource.data.name
+          && request.resource.data.email == resource.data.email
+          && request.resource.data.phone == resource.data.phone
+          && request.resource.data.teamName == resource.data.teamName
+          && request.resource.data.participantCount == resource.data.participantCount
+          && request.resource.data.teamMembers == resource.data.teamMembers
+          && request.resource.data.registeredAt == resource.data.registeredAt
+        )
+      );
+    }
+
+    match /attendance/{attendanceId} {
+      allow read: if true;
+
+      allow create: if signedIn()
+        && requestRole() == 'organizer'
+        && isEventOwner(request.resource.data.eventId)
+        && registrationExists(request.resource.data.registrationId)
+        && registrationData(request.resource.data.registrationId).eventId == request.resource.data.eventId
+        && registrationData(request.resource.data.registrationId).userId == request.resource.data.userId;
+    }
+
+    match /externalEvents/{eventId} {
+      allow read: if true;
+    }
+
+    match /externalSyncStatus/{source} {
+      allow read: if true;
     }
   }
 }

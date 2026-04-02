@@ -34,12 +34,21 @@ function routeUserByRole(role = 'student') {
   window.location.href = role === 'organizer' ? 'organizer-dashboard.html' : 'student-dashboard.html';
 }
 
-function storeGoogleRole(role) {
-  window.sessionStorage.setItem(GOOGLE_ROLE_STORAGE_KEY, role);
+function normalizeRole(role) {
+  return role === 'organizer' || role === 'student' ? role : '';
 }
 
-function consumeGoogleRole(fallbackRole = 'student') {
-  const role = window.sessionStorage.getItem(GOOGLE_ROLE_STORAGE_KEY) || fallbackRole;
+function storeGoogleRole(role) {
+  const normalizedRole = normalizeRole(role);
+  if (!normalizedRole) {
+    window.sessionStorage.removeItem(GOOGLE_ROLE_STORAGE_KEY);
+    return;
+  }
+  window.sessionStorage.setItem(GOOGLE_ROLE_STORAGE_KEY, normalizedRole);
+}
+
+function consumeGoogleRole(fallbackRole = '') {
+  const role = normalizeRole(window.sessionStorage.getItem(GOOGLE_ROLE_STORAGE_KEY)) || normalizeRole(fallbackRole);
   window.sessionStorage.removeItem(GOOGLE_ROLE_STORAGE_KEY);
   return role;
 }
@@ -223,6 +232,33 @@ async function redirectAuthenticatedUser() {
   }
 }
 
+async function resolveGoogleRoleForUser(user, preferredRole = '') {
+  const explicitRole = normalizeRole(preferredRole);
+
+  try {
+    const existingProfile = user?.uid
+      ? await readProfileSnapshot(doc(db, 'users', user.uid))
+      : null;
+    if (existingProfile?.role) {
+      return existingProfile.role;
+    }
+  } catch (error) {
+    console.warn('Profile preflight skipped for Google sign-in:', error);
+  }
+
+  if (explicitRole) {
+    return explicitRole;
+  }
+
+  const rememberedRole = normalizeRole(window.localStorage.getItem(LAST_ROLE_STORAGE_KEY));
+  if (rememberedRole) {
+    return rememberedRole;
+  }
+
+  const wantsOrganizer = window.confirm('Continue with Google as an organizer? Click Cancel to continue as a student.');
+  return wantsOrganizer ? 'organizer' : 'student';
+}
+
 export async function signUpUser(name, email, password, role) {
   savePendingSignup({ name, email, role, phone: '' });
   const credentials = await createUserWithEmailAndPassword(auth, email, password);
@@ -253,14 +289,21 @@ export async function signInUser(email, password) {
   routeUserByRole(profile?.role || pendingSignup?.role || 'student');
 }
 
-export async function signInWithGoogle(preferredRole = 'student') {
-  storeGoogleRole(preferredRole);
-  savePendingSignup({ role: preferredRole, phone: '' });
+export async function signInWithGoogle(preferredRole = '') {
+  const normalizedRole = normalizeRole(preferredRole);
+  storeGoogleRole(normalizedRole);
+  if (normalizedRole) {
+    savePendingSignup({ role: normalizedRole, phone: '' });
+  } else {
+    clearPendingSignup();
+  }
 
   try {
     const credentials = await signInWithPopup(auth, googleProvider);
-    const profile = await ensureUserProfile(credentials.user, preferredRole, { role: preferredRole });
-    consumeGoogleRole(preferredRole);
+    const resolvedRole = await resolveGoogleRoleForUser(credentials.user, normalizedRole);
+    savePendingSignup({ role: resolvedRole, phone: '' });
+    const profile = await ensureUserProfile(credentials.user, resolvedRole, { role: resolvedRole });
+    consumeGoogleRole(resolvedRole);
     routeUserByRole(profile?.role);
     return true;
   } catch (error) {
@@ -272,11 +315,15 @@ export async function signInWithGoogle(preferredRole = 'student') {
         'auth/operation-not-supported-in-this-environment'
       ].includes(error?.code)
     ) {
+      const redirectRole = normalizedRole || resolveGoogleRoleForUser(auth.currentUser, normalizedRole).catch(() => 'student');
+      const safeRole = typeof redirectRole === 'string' ? redirectRole : await redirectRole;
+      storeGoogleRole(safeRole);
+      savePendingSignup({ role: safeRole, phone: '' });
       await signInWithRedirect(auth, googleProvider);
       return false;
     }
 
-    consumeGoogleRole(preferredRole);
+    consumeGoogleRole(normalizedRole);
     throw error;
   }
 }
@@ -287,8 +334,10 @@ export async function completeGoogleRedirectSignIn() {
     return false;
   }
 
-  const preferredRole = consumeGoogleRole();
-  const profile = await ensureUserProfile(result.user, preferredRole, { role: preferredRole });
+  const preferredRole = consumeGoogleRole('');
+  const resolvedRole = await resolveGoogleRoleForUser(result.user, preferredRole);
+  savePendingSignup({ role: resolvedRole, phone: '' });
+  const profile = await ensureUserProfile(result.user, resolvedRole, { role: resolvedRole });
   routeUserByRole(profile?.role);
   return true;
 }
@@ -627,7 +676,7 @@ export function initLoginPage() {
     );
 
     try {
-      await signInWithGoogle('student');
+      await signInWithGoogle();
     } catch (error) {
       handleAuthError(error);
       setButtonsBusy(
