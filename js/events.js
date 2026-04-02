@@ -14,6 +14,7 @@ import {
 import { auth, db } from './firebase-config.js';
 import { checkAuth, fetchUserProfile, signOutUser } from './auth.js';
 import { initScanner, stopScanner } from './attendance.js';
+import { fetchEventCertificates, issueParticipationCertificates, issueWinnerCertificate } from './certificate.js';
 import { promoteFromWaitlist, registerStudent } from './registration.js';
 import {
   formatDate,
@@ -1455,6 +1456,7 @@ export async function initEventDetailPage() {
 async function getOrganizerEventMetrics(eventId) {
   const registrationsSnapshot = await getDocs(query(collection(db, 'registrations'), where('eventId', '==', eventId)));
   const attendanceSnapshot = await getDocs(query(collection(db, 'attendance'), where('eventId', '==', eventId)));
+  const certificateEntries = await fetchEventCertificates(eventId);
   const registrations = registrationsSnapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
   const attendanceEntries = attendanceSnapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
   const registered = registrations.filter((item) => item.status === 'registered').length;
@@ -1462,7 +1464,38 @@ async function getOrganizerEventMetrics(eventId) {
   const attended = attendanceEntries.length;
   const rate = registered ? ((attended / registered) * 100).toFixed(1) : '0.0';
 
-  return { registrations, attendanceEntries, registered, waitlisted, attended, rate };
+  return { registrations, attendanceEntries, certificateEntries, registered, waitlisted, attended, rate };
+}
+
+function getCertificatesByRegistration(certificateEntries = []) {
+  return certificateEntries.reduce((accumulator, item) => {
+    const list = accumulator.get(item.registrationId) || [];
+    list.push(item);
+    list.sort((left, right) => {
+      const leftWeight = left.certificateType === 'winner' ? 0 : 1;
+      const rightWeight = right.certificateType === 'winner' ? 0 : 1;
+      if (leftWeight !== rightWeight) return leftWeight - rightWeight;
+      return 0;
+    });
+    accumulator.set(item.registrationId, list);
+    return accumulator;
+  }, new Map());
+}
+
+function getEligibleCertificateRegistrations(eventModel) {
+  const attendedUserIds = new Set(eventModel.metrics.attendanceEntries.map((item) => item.userId));
+  return eventModel.metrics.registrations.filter((item) => item.status === 'registered' && attendedUserIds.has(item.userId));
+}
+
+function getCertificateSummaryText(records = []) {
+  if (!records.length) {
+    return 'No certificates issued yet';
+  }
+
+  const labels = records.map((record) => record.certificateType === 'winner'
+    ? record.awardRankLabel || 'Winner'
+    : 'Participation');
+  return labels.join(' • ');
 }
 
 function shouldShowCompleteButton(event) {
@@ -1479,10 +1512,10 @@ function getOrganizerStatusClass(event, metrics) {
 
 function getOrganizerInsightCopy(event, metrics) {
   if (event.status === 'Completed') {
-    return `Event completed. ${metrics.attended} students checked in and certificates are now unlocked.`;
+    return `Event completed. ${metrics.attended} students checked in and certificates can still be issued or updated anytime.`;
   }
   if (shouldShowCompleteButton(event)) {
-    return 'The event date has passed. Mark it completed so attended students can download certificates.';
+    return 'The event date has passed. Mark it completed to close the event cleanly while keeping certificate issuance available.';
   }
   if (metrics.waitlisted > 0 && metrics.registered >= event.seatCap) {
     return `${metrics.waitlisted} students are waiting for a spot. Promote from the waitlist as seats open up.`;
@@ -1501,7 +1534,7 @@ function getOrganizerFocusMeta(eventModel) {
     return {
       tag: 'Ready to complete',
       badge: `Completion queue: ${eventModel.event.title}`,
-      metric: 'Mark completed to unlock certificates'
+      metric: 'Mark completed to finalize the event'
     };
   }
   if (eventModel.metrics.waitlisted > 0) {
@@ -1532,15 +1565,17 @@ function getOrganizerFocusMeta(eventModel) {
   };
 }
 
-function renderRegistrationRows(target, registrations, attendedUserIds) {
+function renderRegistrationRows(target, registrations, attendedUserIds, certificateEntries, onGenerateCertificate) {
   target.innerHTML = '';
   if (!registrations.length) {
     target.innerHTML = '<p class="text-muted mb-0">No registered students yet.</p>';
     return;
   }
 
+  const certificatesByRegistration = getCertificatesByRegistration(certificateEntries);
   registrations.forEach((item) => {
     const attended = attendedUserIds.has(item.userId);
+    const issuedCertificates = certificatesByRegistration.get(item.registrationId || item.id) || [];
     const teamCopy = item.participantCount > 1
       ? `<div class="text-muted small">${item.teamName ? `${item.teamName} • ` : ''}${item.participantCount} participants</div>`
       : '';
@@ -1552,9 +1587,22 @@ function renderRegistrationRows(target, registrations, attendedUserIds) {
         <div class="text-muted small">${item.phone || 'Phone unavailable'}</div>
         ${teamCopy}
         <div class="text-muted small">${attended ? 'Attendance marked ✅' : 'Waiting for QR scan'}</div>
+        <div class="text-muted small">${attended ? getCertificateSummaryText(issuedCertificates) : 'Certificates unlock after attendance is marked'}</div>
       </div>
-      <span class="badge ${attended ? 'badge-success' : 'badge-soft'} text-uppercase">${attended ? 'Attended' : item.status}</span>
+      <div class="registration-actions">
+        ${issuedCertificates.some((record) => record.certificateType === 'winner') ? `<span class="badge badge-warning-soft text-uppercase">Winner issued</span>` : ''}
+        ${issuedCertificates.some((record) => record.certificateType === 'participation') ? `<span class="badge badge-success text-uppercase">Participation issued</span>` : ''}
+        <span class="badge ${attended ? 'badge-success' : 'badge-soft'} text-uppercase">${attended ? 'Attended' : item.status}</span>
+      </div>
     `;
+    if (attended) {
+      const actionWrap = row.querySelector('.registration-actions');
+      const button = document.createElement('button');
+      button.className = 'btn btn-outline-primary btn-sm';
+      button.textContent = issuedCertificates.length ? 'Update Certificate' : 'Generate Certificate';
+      button.addEventListener('click', () => onGenerateCertificate?.(item));
+      actionWrap.appendChild(button);
+    }
     target.appendChild(row);
   });
 }
@@ -1800,12 +1848,36 @@ export async function initOrganizerDashboard() {
   const signOutButton = document.getElementById('organizerSignOutButton');
   const refreshWaitlistButton = document.getElementById('refreshWaitlistButton');
   const filterButtons = document.querySelectorAll('#organizerFilterPills .btn-pill');
+  const winnerCertificateModal = new bootstrap.Modal(document.getElementById('winnerCertificateModal'));
+  const participationCertificateModal = new bootstrap.Modal(document.getElementById('participationCertificateModal'));
+  const openWinnerCertificateButton = document.getElementById('openWinnerCertificateButton');
+  const openParticipationCertificateButton = document.getElementById('openParticipationCertificateButton');
+  const winnerCertificateSearch = document.getElementById('winnerCertificateSearch');
+  const winnerCertificateStudentList = document.getElementById('winnerCertificateStudentList');
+  const winnerCertificateSelectedCard = document.getElementById('winnerCertificateSelectedCard');
+  const winnerCertificateRank = document.getElementById('winnerCertificateRank');
+  const winnerCertificateSignerName = document.getElementById('winnerCertificateSignerName');
+  const winnerCertificateSignerTitle = document.getElementById('winnerCertificateSignerTitle');
+  const winnerCertificateCoSignerName = document.getElementById('winnerCertificateCoSignerName');
+  const winnerCertificateCoSignerTitle = document.getElementById('winnerCertificateCoSignerTitle');
+  const winnerCertificateExistingNote = document.getElementById('winnerCertificateExistingNote');
+  const generateWinnerCertificateButton = document.getElementById('generateWinnerCertificateButton');
+  const participationCertificateEligibleCount = document.getElementById('participationCertificateEligibleCount');
+  const participationCertificatePageCount = document.getElementById('participationCertificatePageCount');
+  const participationCertificateStudentList = document.getElementById('participationCertificateStudentList');
+  const participationCertificateSignerName = document.getElementById('participationCertificateSignerName');
+  const participationCertificateSignerTitle = document.getElementById('participationCertificateSignerTitle');
+  const participationCertificateCoSignerName = document.getElementById('participationCertificateCoSignerName');
+  const participationCertificateCoSignerTitle = document.getElementById('participationCertificateCoSignerTitle');
+  const generateParticipationCertificatesButton = document.getElementById('generateParticipationCertificatesButton');
   let selectedManageEventId = null;
   let pendingCompleteEvent = null;
   let allEventModels = [];
   let activeFilter = 'all';
   let selectedPosterFile = null;
   let posterPreviewUrl = '';
+  let selectedWinnerRegistrationId = null;
+  let winnerSearchTerm = '';
 
   signOutButton?.addEventListener('click', async () => {
     await signOutUser();
@@ -1967,6 +2039,153 @@ export async function initOrganizerDashboard() {
   });
 
   const findSelectedManageEvent = () => allEventModels.find((item) => item.event.id === selectedManageEventId);
+  const refreshEventModelMetrics = async (eventId) => {
+    const index = allEventModels.findIndex((item) => item.event.id === eventId);
+    if (index === -1) return null;
+    const updated = {
+      event: allEventModels[index].event,
+      metrics: await getOrganizerEventMetrics(eventId)
+    };
+    allEventModels[index] = updated;
+    return updated;
+  };
+  const syncCertificateSignerFields = ({
+    signerName,
+    signerTitle,
+    coSignerName,
+    coSignerTitle
+  }, source = '') => {
+    if (!signerName && !signerTitle && !coSignerName && !coSignerTitle) return;
+    if (source !== 'winner') {
+      if (!winnerCertificateSignerName.value.trim()) winnerCertificateSignerName.value = signerName || '';
+      if (!winnerCertificateSignerTitle.value.trim()) winnerCertificateSignerTitle.value = signerTitle || '';
+      if (!winnerCertificateCoSignerName.value.trim()) winnerCertificateCoSignerName.value = coSignerName || '';
+      if (!winnerCertificateCoSignerTitle.value.trim()) winnerCertificateCoSignerTitle.value = coSignerTitle || '';
+    }
+    if (source !== 'participation') {
+      if (!participationCertificateSignerName.value.trim()) participationCertificateSignerName.value = signerName || '';
+      if (!participationCertificateSignerTitle.value.trim()) participationCertificateSignerTitle.value = signerTitle || '';
+      if (!participationCertificateCoSignerName.value.trim()) participationCertificateCoSignerName.value = coSignerName || '';
+      if (!participationCertificateCoSignerTitle.value.trim()) participationCertificateCoSignerTitle.value = coSignerTitle || '';
+    }
+  };
+
+  function renderWinnerSelectedCard(eventModel, registration) {
+    const certificateRecords = getCertificatesByRegistration(eventModel.metrics.certificateEntries).get(registration?.registrationId || '') || [];
+    if (!registration) {
+      winnerCertificateSelectedCard.className = 'certificate-selected-card empty';
+      winnerCertificateSelectedCard.innerHTML = '<strong>Select an attended student</strong><span>The selected name, phone, and team details appear here.</span>';
+      winnerCertificateExistingNote.textContent = '';
+      return;
+    }
+
+    const teamCopy = registration.participantCount > 1
+      ? `${registration.teamName ? `${registration.teamName} • ` : ''}${registration.participantCount} participants`
+      : 'Individual participation';
+    const winnerRecord = certificateRecords.find((item) => item.certificateType === 'winner');
+    const participationRecord = certificateRecords.find((item) => item.certificateType === 'participation');
+    winnerCertificateSelectedCard.className = 'certificate-selected-card';
+    winnerCertificateSelectedCard.innerHTML = `
+      <strong>${registration.name}</strong>
+      <span>${registration.phone || 'Phone unavailable'}</span>
+      <span>${teamCopy}</span>
+      <span>${winnerRecord ? `Winner cert issued: ${winnerRecord.awardRankLabel || 'Winner'}` : participationRecord ? 'Participation cert already issued' : 'No certificate issued yet'}</span>
+    `;
+    if (winnerRecord) {
+      winnerCertificateRank.value = winnerRecord.awardRank || 'first';
+      winnerCertificateExistingNote.textContent = `A winner certificate already exists for this attendee. Generating again will update it and download a fresh PDF.`;
+      syncCertificateSignerFields({
+        signerName: winnerRecord.signerName,
+        signerTitle: winnerRecord.signerTitle,
+        coSignerName: winnerRecord.coSignerName,
+        coSignerTitle: winnerRecord.coSignerTitle
+      }, 'winner');
+    } else {
+      winnerCertificateExistingNote.textContent = participationRecord
+        ? 'Participation certificate already exists. You can still issue a winner certificate for this attendee.'
+        : '';
+    }
+  }
+
+  function renderWinnerStudentList(eventModel) {
+    const eligible = getEligibleCertificateRegistrations(eventModel);
+    const certificatesByRegistration = getCertificatesByRegistration(eventModel.metrics.certificateEntries);
+    const filtered = eligible.filter((item) => {
+      if (!winnerSearchTerm) return true;
+      const haystack = `${item.name} ${item.phone || ''} ${item.teamName || ''}`.toLowerCase();
+      return haystack.includes(winnerSearchTerm);
+    });
+
+    if (!filtered.length) {
+      winnerCertificateStudentList.innerHTML = '<p class="text-muted mb-0">No attended students match this search yet.</p>';
+      renderWinnerSelectedCard(eventModel, null);
+      return;
+    }
+
+    if (!selectedWinnerRegistrationId || !filtered.some((item) => item.registrationId === selectedWinnerRegistrationId)) {
+      selectedWinnerRegistrationId = filtered[0].registrationId;
+    }
+
+    winnerCertificateStudentList.innerHTML = '';
+    filtered.forEach((item) => {
+      const records = certificatesByRegistration.get(item.registrationId) || [];
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `certificate-student-option ${item.registrationId === selectedWinnerRegistrationId ? 'active' : ''}`.trim();
+      button.innerHTML = `
+        <strong>${item.name}</strong>
+        <span>${item.phone || 'Phone unavailable'}</span>
+        <small>${item.teamName ? `${item.teamName} • ` : ''}${item.participantCount > 1 ? `${item.participantCount} participants` : 'Individual'}</small>
+        <small>${records.length ? getCertificateSummaryText(records) : 'No certificate issued yet'}</small>
+      `;
+      button.addEventListener('click', () => {
+        selectedWinnerRegistrationId = item.registrationId;
+        renderWinnerStudentList(eventModel);
+      });
+      winnerCertificateStudentList.appendChild(button);
+    });
+
+    renderWinnerSelectedCard(
+      eventModel,
+      filtered.find((item) => item.registrationId === selectedWinnerRegistrationId) || null
+    );
+  }
+
+  function renderParticipationStudentList(eventModel) {
+    const eligible = getEligibleCertificateRegistrations(eventModel);
+    const certificatesByRegistration = getCertificatesByRegistration(eventModel.metrics.certificateEntries);
+    participationCertificateEligibleCount.textContent = String(eligible.length);
+    participationCertificatePageCount.textContent = String(eligible.length);
+
+    if (!eligible.length) {
+      participationCertificateStudentList.innerHTML = '<p class="text-muted mb-0">Mark attendance first. Only attended students can receive participation certificates.</p>';
+      return;
+    }
+
+    participationCertificateStudentList.innerHTML = eligible.map((item) => {
+      const records = certificatesByRegistration.get(item.registrationId) || [];
+      return `
+        <div class="certificate-batch-item">
+          <div>
+            <strong>${item.name}</strong>
+            <span>${item.phone || 'Phone unavailable'}</span>
+          </div>
+          <small>${records.some((record) => record.certificateType === 'participation') ? 'Participation already issued' : 'Ready to include'}</small>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function syncManageCertificateSummary(eventModel) {
+    const eligibleCount = getEligibleCertificateRegistrations(eventModel).length;
+    const totalIssued = eventModel.metrics.certificateEntries.length;
+    const winnerIssued = eventModel.metrics.certificateEntries.filter((item) => item.certificateType === 'winner').length;
+    document.getElementById('manageCertificateEligibleCount').textContent = String(eligibleCount);
+    document.getElementById('manageCertificateIssuedCount').textContent = String(totalIssued);
+    document.getElementById('manageWinnerCertificateCount').textContent = String(winnerIssued);
+    renderWinnerStudentList(eventModel);
+    renderParticipationStudentList(eventModel);
+  }
 
   async function populateManageModal(eventModel) {
     selectedManageEventId = eventModel.event.id;
@@ -1982,10 +2201,19 @@ export async function initOrganizerDashboard() {
     document.getElementById('manageRegisteredCount').textContent = eventModel.metrics.registered;
     document.getElementById('manageAttendanceCount').textContent = eventModel.metrics.attended;
     document.getElementById('manageWaitlistCount').textContent = eventModel.metrics.waitlisted;
+    syncManageCertificateSummary(eventModel);
     renderRegistrationRows(
       document.getElementById('manageRegistrationsList'),
       eventModel.metrics.registrations.filter((item) => item.status === 'registered'),
-      new Set(eventModel.metrics.attendanceEntries.map((item) => item.userId))
+      new Set(eventModel.metrics.attendanceEntries.map((item) => item.userId)),
+      eventModel.metrics.certificateEntries,
+      (registration) => {
+        selectedWinnerRegistrationId = registration.registrationId;
+        winnerSearchTerm = '';
+        if (winnerCertificateSearch) winnerCertificateSearch.value = '';
+        renderWinnerStudentList(eventModel);
+        winnerCertificateModal.show();
+      }
     );
     renderWaitlistRows(
       document.getElementById('manageWaitlistList'),
@@ -1995,6 +2223,10 @@ export async function initOrganizerDashboard() {
         try {
           const result = await promoteFromWaitlist(eventModel.event.id, waitlistItem.registrationId || waitlistItem.id);
           showToast(`Spot offered to ${result.name}! 🚀`, 'success');
+          const refreshedEvent = await refreshEventModelMetrics(eventModel.event.id);
+          if (refreshedEvent) {
+            await populateManageModal(refreshedEvent);
+          }
         } catch (error) {
           showToast(error.message || 'Could not promote right now.', 'error');
         }
@@ -2005,7 +2237,147 @@ export async function initOrganizerDashboard() {
   refreshWaitlistButton?.addEventListener('click', async () => {
     const selectedEvent = findSelectedManageEvent();
     if (selectedEvent) {
-      await populateManageModal(selectedEvent);
+      const refreshedEvent = await refreshEventModelMetrics(selectedEvent.event.id);
+      await populateManageModal(refreshedEvent || selectedEvent);
+    }
+  });
+
+  winnerCertificateSearch?.addEventListener('input', () => {
+    winnerSearchTerm = winnerCertificateSearch.value.trim().toLowerCase();
+    const selectedEvent = findSelectedManageEvent();
+    if (selectedEvent) {
+      renderWinnerStudentList(selectedEvent);
+    }
+  });
+
+  openWinnerCertificateButton?.addEventListener('click', () => {
+    const selectedEvent = findSelectedManageEvent();
+    if (!selectedEvent) return;
+    const eligible = getEligibleCertificateRegistrations(selectedEvent);
+    if (!eligible.length) {
+      showToast('Mark attendance first so certificates can be issued.', 'warning');
+      return;
+    }
+    if (!selectedWinnerRegistrationId) {
+      selectedWinnerRegistrationId = eligible[0].registrationId;
+    }
+    renderWinnerStudentList(selectedEvent);
+    winnerCertificateModal.show();
+  });
+
+  openParticipationCertificateButton?.addEventListener('click', () => {
+    const selectedEvent = findSelectedManageEvent();
+    if (!selectedEvent) return;
+    const eligible = getEligibleCertificateRegistrations(selectedEvent);
+    if (!eligible.length) {
+      showToast('Participation certificates need at least one attended student.', 'warning');
+      return;
+    }
+    renderParticipationStudentList(selectedEvent);
+    participationCertificateModal.show();
+  });
+
+  generateWinnerCertificateButton?.addEventListener('click', async () => {
+    const selectedEvent = findSelectedManageEvent();
+    if (!selectedEvent) return;
+    const registration = getEligibleCertificateRegistrations(selectedEvent)
+      .find((item) => item.registrationId === selectedWinnerRegistrationId);
+    if (!registration) {
+      showToast('Select an attended student first.', 'warning');
+      return;
+    }
+
+    const signerName = winnerCertificateSignerName.value.trim();
+    const signerTitle = winnerCertificateSignerTitle.value.trim();
+    const coSignerName = winnerCertificateCoSignerName.value.trim();
+    const coSignerTitle = winnerCertificateCoSignerTitle.value.trim();
+    if (!signerName || !signerTitle) {
+      showToast('Add signer name and designation before generating.', 'warning');
+      return;
+    }
+
+    syncCertificateSignerFields({
+      signerName,
+      signerTitle,
+      coSignerName,
+      coSignerTitle
+    }, 'winner');
+    const originalText = generateWinnerCertificateButton.textContent;
+    generateWinnerCertificateButton.disabled = true;
+    generateWinnerCertificateButton.textContent = 'Generating winner certificate...';
+
+    try {
+      await issueWinnerCertificate({
+        event: selectedEvent.event,
+        registration,
+        signerName,
+        signerTitle,
+        coSignerName,
+        coSignerTitle,
+        awardRank: winnerCertificateRank.value,
+        issuedBy: user.uid
+      });
+      showToast(`Winner certificate ready for ${registration.name}.`, 'success');
+      winnerCertificateModal.hide();
+      const refreshedEvent = await refreshEventModelMetrics(selectedEvent.event.id);
+      await populateManageModal(refreshedEvent || selectedEvent);
+    } catch (error) {
+      console.error(error);
+      showToast(error.message || 'Could not generate the winner certificate right now.', 'error');
+    } finally {
+      generateWinnerCertificateButton.disabled = false;
+      generateWinnerCertificateButton.textContent = originalText;
+    }
+  });
+
+  generateParticipationCertificatesButton?.addEventListener('click', async () => {
+    const selectedEvent = findSelectedManageEvent();
+    if (!selectedEvent) return;
+    const signerName = participationCertificateSignerName.value.trim();
+    const signerTitle = participationCertificateSignerTitle.value.trim();
+    const coSignerName = participationCertificateCoSignerName.value.trim();
+    const coSignerTitle = participationCertificateCoSignerTitle.value.trim();
+    if (!signerName || !signerTitle) {
+      showToast('Add signer name and designation before generating.', 'warning');
+      return;
+    }
+
+    const eligible = getEligibleCertificateRegistrations(selectedEvent);
+    if (!eligible.length) {
+      showToast('No attended students are available for participation certificates.', 'warning');
+      return;
+    }
+
+    syncCertificateSignerFields({
+      signerName,
+      signerTitle,
+      coSignerName,
+      coSignerTitle
+    }, 'participation');
+    const originalText = generateParticipationCertificatesButton.textContent;
+    generateParticipationCertificatesButton.disabled = true;
+    generateParticipationCertificatesButton.textContent = 'Generating certificate batch...';
+
+    try {
+      await issueParticipationCertificates({
+        event: selectedEvent.event,
+        registrations: eligible,
+        signerName,
+        signerTitle,
+        coSignerName,
+        coSignerTitle,
+        issuedBy: user.uid
+      });
+      showToast(`Participation certificates generated for ${eligible.length} attendees.`, 'success');
+      participationCertificateModal.hide();
+      const refreshedEvent = await refreshEventModelMetrics(selectedEvent.event.id);
+      await populateManageModal(refreshedEvent || selectedEvent);
+    } catch (error) {
+      console.error(error);
+      showToast(error.message || 'Could not generate participation certificates right now.', 'error');
+    } finally {
+      generateParticipationCertificatesButton.disabled = false;
+      generateParticipationCertificatesButton.textContent = originalText;
     }
   });
 
@@ -2026,6 +2398,11 @@ export async function initOrganizerDashboard() {
     document.getElementById('scannerResultCard').innerHTML = '<strong>Ready to scan</strong><span>Results appear here after each QR check-in.</span>';
   });
 
+  document.getElementById('winnerCertificateModal')?.addEventListener('hidden.bs.modal', () => {
+    winnerSearchTerm = '';
+    if (winnerCertificateSearch) winnerCertificateSearch.value = '';
+  });
+
   const actionHandlers = {
     onScan: async (eventModel) => {
       document.getElementById('scannerEventName').textContent = eventModel.event.title;
@@ -2038,7 +2415,7 @@ export async function initOrganizerDashboard() {
     },
     onComplete: (eventModel) => {
       pendingCompleteEvent = eventModel;
-      document.getElementById('completeEventMessage').textContent = `Mark ${eventModel.event.title} as completed? Students will be able to download their certificates.`;
+      document.getElementById('completeEventMessage').textContent = `Mark ${eventModel.event.title} as completed? Attendance will be finalized and issued certificates will remain available for download.`;
       completeEventModal.show();
     }
   };

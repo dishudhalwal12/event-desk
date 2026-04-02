@@ -14,7 +14,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { auth, db } from './firebase-config.js';
 import { checkAuth, fetchUserProfile, signOutUser } from './auth.js';
-import { generateCertificate } from './certificate.js';
+import { downloadIssuedCertificate, generateCertificate, subscribeToUserCertificates } from './certificate.js';
 import { sendConfirmationEmail, sendWaitlistNotification } from './email.js';
 import {
   formatDate,
@@ -37,6 +37,15 @@ function getStoredCertificates(userId) {
 
 function saveStoredCertificates(userId, values) {
   window.localStorage.setItem(`${certificateStoragePrefix}${userId}`, JSON.stringify(values));
+}
+
+function markCertificateDownloaded(userId, certificateKey) {
+  const stored = getStoredCertificates(userId);
+  if (!stored.includes(certificateKey)) {
+    stored.push(certificateKey);
+    saveStoredCertificates(userId, stored);
+  }
+  return stored;
 }
 
 function getEventMillis(event) {
@@ -415,11 +424,19 @@ function downloadQrImage() {
 }
 
 function getCardState(item) {
+  const issuedCertificates = Array.isArray(item.certificateRecords) ? item.certificateRecords : [];
   if (item.status === 'cancelled') {
     return { label: 'Cancelled', className: 'cancelled', action: 'none' };
   }
   if (item.status === 'waitlisted') {
     return { label: 'Waitlisted ⏳', className: 'waitlisted', action: 'waitlisted' };
+  }
+  if (issuedCertificates.length) {
+    return {
+      label: issuedCertificates.length > 1 ? `${issuedCertificates.length} Certificates Ready 🏆` : 'Certificate Ready 🏆',
+      className: 'certificate',
+      action: 'certificate'
+    };
   }
   if (item.attended && item.event?.status === 'Completed') {
     return { label: 'Certificate Ready 🏆', className: 'certificate', action: 'certificate' };
@@ -434,15 +451,22 @@ function getStudentStatusCopy(item, state) {
   const teamSummary = item.participantCount > 1
     ? ` Team ${item.teamName ? `"${item.teamName}"` : 'registration'} includes ${item.participantCount} participants.`
     : '';
+  const certificateRecords = Array.isArray(item.certificateRecords) ? item.certificateRecords : [];
 
   if (state.action === 'waitlisted') {
     return `You are #${item.waitlistPos} in queue for this event. If a seat opens, the organizer can promote you straight from their dashboard.${teamSummary}`;
   }
   if (state.action === 'certificate') {
-    return `Attendance is confirmed and the organizer has completed the event. Your certificate is ready to download.${teamSummary}`;
+    if (certificateRecords.length) {
+      const labels = certificateRecords.map((record) => record.certificateType === 'winner'
+        ? `${record.awardRankLabel || 'Winner'} certificate`
+        : 'participation certificate');
+      return `Attendance is verified and your ${labels.join(' + ')} ${labels.length > 1 ? 'are' : 'is'} ready to download.${teamSummary}`;
+    }
+    return `Attendance is confirmed and the event has been completed. Your certificate is ready to download.${teamSummary}`;
   }
   if (state.action === 'attended') {
-    return `Your attendance was marked successfully. The certificate unlocks as soon as the organizer marks this event completed.${teamSummary}`;
+    return `Your attendance was marked successfully. The organizer can now issue certificates from the dashboard whenever they are ready.${teamSummary}`;
   }
   if (state.action === 'none') {
     return `You released your spot for this event. If you change your mind later, you can register again if seats are still open.${teamSummary}`;
@@ -571,14 +595,14 @@ function renderStudentSidePanels(profile, items, campusEvents, rank) {
 
   document.getElementById('studentCertificateSummary').textContent = `${readyCertificates.length} ready`;
   if (!readyCertificates.length) {
-    renderEmptyStack('studentCertificatesPanel', 'Certificate-ready events show up here the moment the organizer marks them completed.');
+    renderEmptyStack('studentCertificatesPanel', 'Certificate-ready events show up here as soon as the organizer issues them.');
   } else {
     const target = document.getElementById('studentCertificatesPanel');
     target.classList.remove('empty');
     target.innerHTML = readyCertificates.slice(0, 3).map((item) => `
       <div class="stack-list-item">
         <strong>${item.event?.title || 'Campus Event'}</strong>
-        <span>${downloadedCertificates.has(item.registrationId) ? 'Already downloaded on this device' : 'Ready to download now'}</span>
+        <span>${downloadedCertificates.has(item.certificateRecords?.[0]?.id || item.registrationId) ? 'Already downloaded on this device' : 'Ready to download now'}</span>
         <small>${formatShortDate(item.event?.date)} • ${item.event?.venue || 'Venue TBA'}</small>
       </div>
     `).join('');
@@ -671,37 +695,61 @@ function renderStudentDashboardItems(items, userProfile, qrModal, onCertificateS
         actionArea.appendChild(cancelButton);
       }
     } else if (state.action === 'certificate') {
-      const button = document.createElement('button');
-      button.className = 'btn btn-primary';
-      button.textContent = 'Download 📄';
-      button.addEventListener('click', async () => {
-        const success = await generateCertificate(
-          userProfile.name,
-          item.event?.title || 'Event',
-          formatDate(item.event?.date),
-          auth.currentUser?.uid,
-          item.eventId
-        );
-        if (success) {
-          if (window.confetti) {
-            window.confetti({
-              particleCount: 120,
-              spread: 70,
-              origin: { y: 0.6 },
-              colors: ['#232323', '#A8D5C3', '#F59E0B', '#ffffff']
-            });
+      const issuedCertificates = Array.isArray(item.certificateRecords) ? item.certificateRecords : [];
+      if (issuedCertificates.length) {
+        issuedCertificates.forEach((record) => {
+          const button = document.createElement('button');
+          button.className = record.certificateType === 'winner' ? 'btn btn-primary' : 'btn btn-outline-primary';
+          button.textContent = record.certificateType === 'winner'
+            ? `Download ${record.awardRankLabel || 'Winner'} 🏆`
+            : 'Download Participation 📄';
+          button.addEventListener('click', async () => {
+            await downloadIssuedCertificate(record);
+            if (window.confetti) {
+              window.confetti({
+                particleCount: record.certificateType === 'winner' ? 150 : 110,
+                spread: 72,
+                origin: { y: 0.6 },
+                colors: ['#232323', '#A8D5C3', '#F59E0B', '#ffffff']
+              });
+            }
+            const stored = markCertificateDownloaded(auth.currentUser.uid, record.id);
+            document.getElementById('statCertificates').textContent = stored.length;
+            onCertificateSaved?.();
+            showToast(`${record.typeLabel || 'Certificate'} saved! 📄`, 'success');
+          });
+          actionArea.appendChild(button);
+        });
+        actionArea.appendChild(detailLink);
+      } else {
+        const button = document.createElement('button');
+        button.className = 'btn btn-primary';
+        button.textContent = 'Download Participation 📄';
+        button.addEventListener('click', async () => {
+          const success = await generateCertificate(
+            userProfile.name,
+            item.event?.title || 'Event',
+            formatDate(item.event?.date),
+            auth.currentUser?.uid,
+            item.eventId
+          );
+          if (success) {
+            if (window.confetti) {
+              window.confetti({
+                particleCount: 120,
+                spread: 70,
+                origin: { y: 0.6 },
+                colors: ['#232323', '#A8D5C3', '#F59E0B', '#ffffff']
+              });
+            }
+            const stored = markCertificateDownloaded(auth.currentUser.uid, `legacy-${item.registrationId}`);
+            document.getElementById('statCertificates').textContent = stored.length;
+            onCertificateSaved?.();
+            showToast('Certificate saved! 📄 You earned it.', 'success');
           }
-          const stored = getStoredCertificates(auth.currentUser.uid);
-          if (!stored.includes(item.registrationId)) {
-            stored.push(item.registrationId);
-            saveStoredCertificates(auth.currentUser.uid, stored);
-          }
-          document.getElementById('statCertificates').textContent = stored.length;
-          onCertificateSaved?.();
-          showToast('Certificate saved! 📄 You earned it.', 'success');
-        }
-      });
-      actionArea.append(button, detailLink);
+        });
+        actionArea.append(button, detailLink);
+      }
     } else if (state.action === 'waitlisted') {
       const info = document.createElement('span');
       info.className = 'fw-semibold align-self-center';
@@ -729,6 +777,7 @@ export async function initStudentDashboard() {
   let activeTab = 'all';
   let latestRegistrations = [];
   let attendedEventIds = new Set();
+  let certificatesByRegistrationId = new Map();
   let campusEvents = [];
   let campusEventsById = new Map();
   let latestRank = null;
@@ -758,11 +807,13 @@ export async function initStudentDashboard() {
       const registrations = await Promise.all(
         latestRegistrations.map(async (item) => {
           const cachedEvent = campusEventsById.get(item.eventId);
+          const certificateRecords = certificatesByRegistrationId.get(item.registrationId) || [];
           if (cachedEvent) {
             return {
               ...item,
               event: cachedEvent,
-              attended: attendedEventIds.has(item.eventId)
+              attended: attendedEventIds.has(item.eventId),
+              certificateRecords
             };
           }
 
@@ -770,7 +821,8 @@ export async function initStudentDashboard() {
           return {
             ...item,
             event: eventSnapshot.exists() ? { id: eventSnapshot.id, ...eventSnapshot.data() } : null,
-            attended: attendedEventIds.has(item.eventId)
+            attended: attendedEventIds.has(item.eventId),
+            certificateRecords
           };
         })
       );
@@ -813,6 +865,20 @@ export async function initStudentDashboard() {
       attendedEventIds = new Set(snapshot.docs.map((item) => item.data().eventId));
       scheduleRefresh();
     }
+  );
+
+  subscribeToUserCertificates(
+    user.uid,
+    (records) => {
+      certificatesByRegistrationId = records.reduce((accumulator, record) => {
+        const list = accumulator.get(record.registrationId) || [];
+        list.push(record);
+        accumulator.set(record.registrationId, list);
+        return accumulator;
+      }, new Map());
+      scheduleRefresh();
+    },
+    (error) => console.warn('Certificate subscription skipped:', error)
   );
 
   tabs.forEach((tab) => {

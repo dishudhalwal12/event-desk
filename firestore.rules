@@ -141,6 +141,28 @@ service cloud.firestore {
         && registrationData(request.resource.data.registrationId).userId == request.resource.data.userId;
     }
 
+    match /certificates/{certificateId} {
+      allow read: if signedIn()
+        && (
+          resource.data.userId == request.auth.uid
+          || isEventOwner(resource.data.eventId)
+        );
+
+      allow create, update: if signedIn()
+        && requestRole() == 'organizer'
+        && isEventOwner(request.resource.data.eventId)
+        && request.resource.data.certificateId == certificateId
+        && request.resource.data.sourceType == 'campus'
+        && (
+          request.resource.data.certificateType == 'participation'
+          || request.resource.data.certificateType == 'winner'
+        )
+        && request.resource.data.userId is string
+        && request.resource.data.registrationId is string
+        && request.resource.data.eventId is string
+        && request.resource.data.studentName is string;
+    }
+
     match /externalEvents/{eventId} {
       allow read: if true;
     }
