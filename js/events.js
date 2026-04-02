@@ -366,6 +366,20 @@ function updateSeatUI(registeredCount, seatCap) {
   };
 }
 
+function isLocalPreviewMode() {
+  return /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
+}
+
+function getFirestoreCompatibilityHint() {
+  if (!isLocalPreviewMode()) {
+    return 'Check the Firebase rules, project config, and network connection, then refresh.';
+  }
+
+  const currentUrl = new URL(window.location.href);
+  currentUrl.searchParams.set('transport', 'long-polling');
+  return `If sign-in works but events do not load on this laptop, reopen this page with Firestore compatibility mode: ${currentUrl.pathname}${currentUrl.search}`;
+}
+
 function renderEventCards(events) {
   const grid = document.getElementById('eventsGrid');
   const emptyState = document.getElementById('eventsEmptyState');
@@ -683,19 +697,19 @@ export async function initEventsPage() {
 
     if (currentSource === 'campus' && campusLoadError) {
       emptyStateTitle.textContent = 'Campus events are unavailable right now.';
-      emptyStateCopy.textContent = 'EventDesk could not reach the live campus feed. Check Firestore access or refresh the page.';
+      emptyStateCopy.textContent = `EventDesk could not reach the live campus feed. ${getFirestoreCompatibilityHint()}`;
       return;
     }
 
     if (currentSource === 'external' && externalLoadError) {
       emptyStateTitle.textContent = 'External opportunities are unavailable right now.';
-      emptyStateCopy.textContent = 'EventDesk could not reach the synced external feed. Refresh after Firestore is back online.';
+      emptyStateCopy.textContent = `EventDesk could not reach the synced external feed. ${getFirestoreCompatibilityHint()}`;
       return;
     }
 
     if ((campusLoadError || externalLoadError) && !allEvents.length) {
       emptyStateTitle.textContent = 'Live data is unavailable right now.';
-      emptyStateCopy.textContent = 'EventDesk could not reach Firestore for the live feed. Check the connection or Firebase rules, then refresh.';
+      emptyStateCopy.textContent = `EventDesk could not reach Firestore for the live feed. ${getFirestoreCompatibilityHint()}`;
       return;
     }
 

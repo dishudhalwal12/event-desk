@@ -17,10 +17,47 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-const db = initializeFirestore(app, {
-  experimentalAutoDetectLongPolling: true,
-  useFetchStreams: false
-});
+
+function shouldForceLongPolling() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const transportParam = params.get('transport');
+    if (transportParam === 'long-polling') {
+      window.localStorage.setItem('eventdesk-force-long-polling', 'true');
+      return true;
+    }
+
+    if (transportParam === 'auto') {
+      window.localStorage.removeItem('eventdesk-force-long-polling');
+      return false;
+    }
+
+    if (window.localStorage.getItem('eventdesk-force-long-polling') === 'true') {
+      return true;
+    }
+
+    const isLocalPreview = /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
+    const isWindowsClient = /windows/i.test(navigator.userAgent);
+    return isLocalPreview && isWindowsClient;
+  } catch (_error) {
+    return false;
+  }
+}
+
+const useForcedLongPolling = shouldForceLongPolling();
+const db = initializeFirestore(app, useForcedLongPolling
+  ? {
+      experimentalForceLongPolling: true,
+      useFetchStreams: false
+    }
+  : {
+      experimentalAutoDetectLongPolling: true,
+      useFetchStreams: false
+    });
+
+if (useForcedLongPolling) {
+  console.info('EventDesk enabled Firestore compatibility mode (long polling) for this browser.');
+}
 
 setPersistence(auth, browserLocalPersistence).catch((error) => {
   console.warn('Auth persistence fallback:', error);

@@ -103,6 +103,12 @@ The laptop is offline, firewall-blocked, or the connection is unstable.
 Fix:
 Reconnect to the internet and try again.
 
+If login works but the events feed still shows unavailable on a Windows laptop or strict office network:
+
+- open the page through `http://localhost/...` or the hosted URL, not `file:///...`
+- reopen the events page with `?transport=long-polling`
+- example: `http://127.0.0.1:5500/event-desk/events.html?transport=long-polling`
+
 ### 6. `Email skipped:`
 
 Meaning:
@@ -172,6 +178,7 @@ Important:
 - do not commit it to GitHub
 - do not rename it
 - do not place it in another folder
+- do not run the `.env` file with Node; it is a config file, not a script
 
 ### 4. Run The External Opportunities Sync
 
