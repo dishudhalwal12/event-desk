@@ -32,18 +32,30 @@ jobs:
         working-directory: scripts/external-import
         run: npm ci
 
-      - name: Validate Firebase secret
+      - name: Resolve Firebase service account
+        id: firebase_creds
         env:
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_SERVICE_ACCOUNT_KRISHNA_E9C59: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KRISHNA_E9C59 }}
         run: |
-          if [ -z "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
-            echo "FIREBASE_SERVICE_ACCOUNT_JSON is missing."
+          SERVICE_ACCOUNT_JSON="${FIREBASE_SERVICE_ACCOUNT_JSON:-$FIREBASE_SERVICE_ACCOUNT}"
+          if [ -z "$SERVICE_ACCOUNT_JSON" ]; then
+            SERVICE_ACCOUNT_JSON="$FIREBASE_SERVICE_ACCOUNT_KRISHNA_E9C59"
+          fi
+
+          if [ -z "$SERVICE_ACCOUNT_JSON" ]; then
+            echo "::error::Missing Firebase service account secret. Add FIREBASE_SERVICE_ACCOUNT_JSON, FIREBASE_SERVICE_ACCOUNT, or FIREBASE_SERVICE_ACCOUNT_KRISHNA_E9C59 in GitHub Actions secrets."
             exit 1
           fi
+
+          CREDENTIALS_FILE="$RUNNER_TEMP/firebase-service-account.json"
+          printf '%s' "$SERVICE_ACCOUNT_JSON" > "$CREDENTIALS_FILE"
+          echo "credentials_path=$CREDENTIALS_FILE" >> "$GITHUB_OUTPUT"
 
       - name: Sync Unstop opportunities into Firestore
         working-directory: scripts/external-import
         env:
           FIREBASE_PROJECT_ID: krishna-e9c59
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.firebase_creds.outputs.credentials_path }}
         run: node src/index.js --source=unstop --max-urls=50 --verbose

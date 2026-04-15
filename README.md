@@ -359,8 +359,9 @@ Required GitHub setup:
 1. Push this repo to GitHub.
 2. Open the repo on GitHub.
 3. Go to `Settings` -> `Secrets and variables` -> `Actions`.
-4. Create a new repository secret named `FIREBASE_SERVICE_ACCOUNT_JSON`.
-5. Paste the full Firebase service account JSON into that secret.
+4. Add one Firebase service account secret for GitHub Actions.
+5. Use `FIREBASE_SERVICE_ACCOUNT_JSON`, `FIREBASE_SERVICE_ACCOUNT`, or `FIREBASE_SERVICE_ACCOUNT_KRISHNA_E9C59`.
+6. Paste the full Firebase service account JSON into that secret.
 
 The workflow is currently set to run daily at `00:30 UTC` which is `06:00 AM IST`.
 

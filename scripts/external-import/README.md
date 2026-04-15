@@ -28,7 +28,7 @@ Important:
 
 - The importer writes to Firestore with Admin SDK credentials.
 - The target Firebase project should match the project used by the hosted EventDesk frontend.
-- For hosted automatic syncing, use the GitHub Actions workflow and store the service account JSON in the GitHub repository secret `FIREBASE_SERVICE_ACCOUNT_JSON`.
+- For hosted automatic syncing, use the GitHub Actions workflow and store the service account JSON in one of these GitHub repository secrets: `FIREBASE_SERVICE_ACCOUNT_JSON`, `FIREBASE_SERVICE_ACCOUNT`, or `FIREBASE_SERVICE_ACCOUNT_KRISHNA_E9C59`.
 - For local backup/manual use, keep a private `.env` file in this folder and do not commit it.
 
 ## Run
