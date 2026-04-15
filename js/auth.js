@@ -16,11 +16,13 @@ import {
   setDoc
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { auth, db } from './firebase-config.js';
+import { tryRecoverFirestoreTransport } from './firestore-transport.js';
 import { showToast, validateEmail } from './utils.js';
 
 const GOOGLE_ROLE_STORAGE_KEY = 'eventdesk-google-role';
 const PENDING_SIGNUP_STORAGE_KEY = 'eventdesk-pending-signup';
 const LAST_ROLE_STORAGE_KEY = 'eventdesk-last-role';
+const AUTH_SESSION_TIMEOUT_MS = 10000;
 const PROFILE_RETRY_DELAYS_MS = [0, 300, 900, 1800];
 const googleProvider = new GoogleAuthProvider();
 
@@ -79,6 +81,38 @@ function delay(ms) {
   });
 }
 
+function waitForSettledAuthUser(uid, timeoutMs = AUTH_SESSION_TIMEOUT_MS) {
+  return new Promise((resolve, reject) => {
+    if (!uid) {
+      reject(new Error('Missing authenticated user'));
+      return;
+    }
+
+    let finished = false;
+    let unsubscribe = () => {};
+
+    const finish = (handler, value) => {
+      if (finished) return;
+      finished = true;
+      window.clearTimeout(timeoutId);
+      unsubscribe();
+      handler(value);
+    };
+
+    const timeoutId = window.setTimeout(() => {
+      finish(reject, new Error('Timed out waiting for Firebase Auth to finish sign-in.'));
+    }, timeoutMs);
+
+    unsubscribe = onAuthStateChanged(auth, (nextUser) => {
+      if (!nextUser || nextUser.uid !== uid) {
+        return;
+      }
+
+      finish(resolve, nextUser);
+    });
+  });
+}
+
 function isRetriableProfileError(error) {
   const code = String(error?.code || '');
   const message = String(error?.message || '').toLowerCase();
@@ -87,7 +121,6 @@ function isRetriableProfileError(error) {
     || code.includes('deadline-exceeded')
     || code.includes('network-request-failed')
     || code.includes('failed-precondition')
-    || code.includes('permission-denied')
     || message.includes('offline')
     || message.includes('transport errored')
   );
@@ -106,11 +139,17 @@ function buildFallbackProfile(user, preferredRole = 'student', overrides = {}) {
 }
 
 async function primeAuthenticatedSession(user) {
-  if (!user) {
+  if (!user?.uid) {
     throw new Error('Missing authenticated user');
   }
 
-  await user.getIdToken(true);
+  if (typeof auth.authStateReady === 'function') {
+    await auth.authStateReady().catch(() => {});
+  }
+
+  const settledUser = await waitForSettledAuthUser(user.uid);
+  await settledUser.getIdToken();
+  return settledUser;
 }
 
 async function readProfileSnapshot(profileRef) {
@@ -227,6 +266,11 @@ async function redirectAuthenticatedUser() {
     );
     routeUserByRole(profile?.role || pendingSignup?.role || 'student');
     return true;
+  } catch (error) {
+    if (tryRecoverFirestoreTransport(error, 'profile sync')) {
+      return false;
+    }
+    throw error;
   } finally {
     window.__eventdeskAuthRedirecting = false;
   }
@@ -236,6 +280,7 @@ async function resolveGoogleRoleForUser(user, preferredRole = '') {
   const explicitRole = normalizeRole(preferredRole);
 
   try {
+    await primeAuthenticatedSession(user);
     const existingProfile = user?.uid
       ? await readProfileSnapshot(doc(db, 'users', user.uid))
       : null;
@@ -404,6 +449,9 @@ export function checkAuth(requiredRole) {
       try {
         profile = await fetchUserProfile(user.uid);
       } catch (error) {
+        if (tryRecoverFirestoreTransport(error, 'profile sync')) {
+          return;
+        }
         reject(error);
         return;
       }
@@ -412,6 +460,9 @@ export function checkAuth(requiredRole) {
         try {
           profile = await ensureUserProfile(user, window.localStorage.getItem(LAST_ROLE_STORAGE_KEY) || 'student');
         } catch (error) {
+          if (tryRecoverFirestoreTransport(error, 'profile sync')) {
+            return;
+          }
           window.location.href = 'login.html';
           reject(error);
           return;
@@ -432,6 +483,9 @@ export function checkAuth(requiredRole) {
 function handleAuthError(error) {
   const code = error?.code || '';
   const message = String(error?.message || '');
+  if (tryRecoverFirestoreTransport(error, 'profile sync')) {
+    return;
+  }
   if (code.includes('auth/user-not-found') || code.includes('auth/invalid-credential')) {
     showToast('No account with this email. Sign up first!', 'error');
     return;

@@ -2,11 +2,13 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
   query,
   where
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { db } from './firebase-config.js';
+import { withFirestoreTransportRecovery } from './firestore-transport.js';
 import { normalizeExternalOpportunity } from './opportunity-utils.js';
 
 export async function getExternalEventById(eventId) {
@@ -25,6 +27,16 @@ export async function getExternalEventById(eventId) {
   }
 }
 
+export async function fetchExternalEventsSnapshot() {
+  const snapshot = await getDocs(query(collection(db, 'externalEvents'), where('isActive', '==', true)));
+  return snapshot.docs.map((item) => normalizeExternalOpportunity({ id: item.id, ...item.data() }));
+}
+
+export async function fetchExternalSyncStatusSnapshot() {
+  const snapshot = await getDoc(doc(db, 'externalSyncStatus', 'unstop'));
+  return snapshot.exists() ? snapshot.data() : null;
+}
+
 export function subscribeToExternalEvents(callback, onError) {
   return onSnapshot(
     query(collection(db, 'externalEvents'), where('isActive', '==', true)),
@@ -33,7 +45,7 @@ export function subscribeToExternalEvents(callback, onError) {
         snapshot.docs.map((item) => normalizeExternalOpportunity({ id: item.id, ...item.data() }))
       );
     },
-    onError
+    withFirestoreTransportRecovery('external opportunities feed', onError)
   );
 }
 
@@ -43,6 +55,6 @@ export function subscribeToExternalSyncStatus(callback, onError) {
     (snapshot) => {
       callback(snapshot.exists() ? snapshot.data() : null);
     },
-    onError
+    withFirestoreTransportRecovery('external sync status', onError)
   );
 }

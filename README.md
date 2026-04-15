@@ -103,9 +103,10 @@ The laptop is offline, firewall-blocked, or the connection is unstable.
 Fix:
 Reconnect to the internet and try again.
 
-If login works but the events feed still shows unavailable on a Windows laptop or strict office network:
+If login works but the events feed still shows unavailable on a laptop or strict office network:
 
 - open the page through `http://localhost/...` or the hosted URL, not `file:///...`
+- EventDesk now forces Firestore compatibility mode automatically for `localhost` and `127.0.0.1`
 - reopen the events page with `?transport=long-polling`
 - example: `http://127.0.0.1:5500/event-desk/events.html?transport=long-polling`
 

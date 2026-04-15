@@ -10,6 +10,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { auth, db } from './firebase-config.js';
 import { hasStudentAttended } from './attendance.js';
+import { withFirestoreTransportRecovery } from './firestore-transport.js';
 import { formatDate, formatShortDate, showToast, slugify, toDateValue } from './utils.js';
 
 const CERTIFICATE_COLLECTION = 'certificates';
@@ -356,7 +357,7 @@ export function subscribeToUserCertificates(userId, onData, onError) {
   return onSnapshot(
     query(collection(db, CERTIFICATE_COLLECTION), where('userId', '==', userId)),
     (snapshot) => onData(sortCertificateRecords(snapshot.docs.map(normalizeRecord))),
-    onError
+    withFirestoreTransportRecovery('certificate shelf', onError)
   );
 }
 

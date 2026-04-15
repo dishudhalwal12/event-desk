@@ -159,9 +159,27 @@
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script type="module">
-    import { initEventsPage } from './js/events.js';
+    const showBootstrapError = (error) => {
+      console.error('EventDesk events bootstrap failed:', error);
+      const emptyState = document.getElementById('eventsEmptyState');
+      const title = document.getElementById('eventsEmptyStateTitle');
+      const copy = document.getElementById('eventsEmptyStateCopy');
+      const loader = document.getElementById('eventsLoader');
+      if (loader) {
+        loader.innerHTML = '';
+      }
+      if (title) {
+        title.textContent = 'Live data is unavailable right now.';
+      }
+      if (copy) {
+        copy.textContent = error?.message || 'EventDesk could not start the events feed. Refresh and try again.';
+      }
+      emptyState?.classList.remove('d-none');
+    };
 
-    initEventsPage();
+    import('./js/events.js')
+      .then(({ initEventsPage }) => initEventsPage())
+      .catch(showBootstrapError);
   </script>
 </body>
 </html>

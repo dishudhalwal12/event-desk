@@ -16,6 +16,7 @@ import { auth, db } from './firebase-config.js';
 import { checkAuth, fetchUserProfile, signOutUser } from './auth.js';
 import { downloadIssuedCertificate, generateCertificate, subscribeToUserCertificates } from './certificate.js';
 import { sendConfirmationEmail, sendWaitlistNotification } from './email.js';
+import { withFirestoreTransportRecovery } from './firestore-transport.js';
 import {
   formatDate,
   formatShortDate,
@@ -769,7 +770,18 @@ function renderStudentDashboardItems(items, userProfile, qrModal, onCertificateS
 }
 
 export async function initStudentDashboard() {
-  const { user, profile } = await checkAuth('student');
+  let session;
+  try {
+    session = await checkAuth('student');
+  } catch (error) {
+    if (error?.message !== 'Unauthenticated' && error?.message !== 'Role mismatch') {
+      console.error('Student dashboard auth bootstrap failed:', error);
+      showToast('EventDesk could not load your dashboard right now. Refresh and try again.', 'error');
+    }
+    return;
+  }
+
+  const { user, profile } = session;
   const qrModal = new bootstrap.Modal(document.getElementById('qrModal'));
   const tabs = document.querySelectorAll('#studentTabs .btn-pill');
   const signOutButton = document.getElementById('studentSignOutButton');
@@ -781,6 +793,7 @@ export async function initStudentDashboard() {
   let campusEvents = [];
   let campusEventsById = new Map();
   let latestRank = null;
+  let hasShownDashboardFeedError = false;
 
   document.getElementById('studentGreeting').textContent = `Hey ${profile.name}! 👋`;
   signOutButton?.addEventListener('click', async () => {
@@ -837,6 +850,15 @@ export async function initStudentDashboard() {
     }, 150);
   };
 
+  const handleDashboardFeedError = (surface) => (error) => {
+    console.warn(`Student dashboard ${surface} unavailable:`, error);
+    hideLoadingSpinner('studentDashboardLoader', 'We could not load your live dashboard right now.');
+    if (!hasShownDashboardFeedError) {
+      hasShownDashboardFeedError = true;
+      showToast('EventDesk could not open your live dashboard. Refresh and try again.', 'error');
+    }
+  };
+
   onSnapshot(
     query(collection(db, 'events')),
     (snapshot) => {
@@ -845,7 +867,8 @@ export async function initStudentDashboard() {
         .sort((left, right) => getEventMillis(left) - getEventMillis(right));
       campusEventsById = new Map(campusEvents.map((event) => [event.id, event]));
       scheduleRefresh();
-    }
+    },
+    withFirestoreTransportRecovery('student dashboard events feed', handleDashboardFeedError('events feed'))
   );
 
   onSnapshot(
@@ -856,7 +879,8 @@ export async function initStudentDashboard() {
         registrationId: item.id
       }));
       scheduleRefresh();
-    }
+    },
+    withFirestoreTransportRecovery('student dashboard registrations', handleDashboardFeedError('registrations feed'))
   );
 
   onSnapshot(
@@ -864,7 +888,8 @@ export async function initStudentDashboard() {
     (snapshot) => {
       attendedEventIds = new Set(snapshot.docs.map((item) => item.data().eventId));
       scheduleRefresh();
-    }
+    },
+    withFirestoreTransportRecovery('student dashboard attendance', handleDashboardFeedError('attendance feed'))
   );
 
   subscribeToUserCertificates(
@@ -878,7 +903,7 @@ export async function initStudentDashboard() {
       }, new Map());
       scheduleRefresh();
     },
-    (error) => console.warn('Certificate subscription skipped:', error)
+    handleDashboardFeedError('certificate feed')
   );
 
   tabs.forEach((tab) => {

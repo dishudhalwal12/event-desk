@@ -17,6 +17,10 @@ import { initScanner, stopScanner } from './attendance.js';
 import { fetchEventCertificates, issueParticipationCertificates, issueWinnerCertificate } from './certificate.js';
 import { promoteFromWaitlist, registerStudent } from './registration.js';
 import {
+  getFirestoreRecoveryAdvice,
+  withFirestoreTransportRecovery
+} from './firestore-transport.js';
+import {
   formatDate,
   formatShortDate,
   getCampusEventRegistrationState,
@@ -33,6 +37,8 @@ import {
   validatePhone
 } from './utils.js';
 import {
+  fetchExternalEventsSnapshot,
+  fetchExternalSyncStatusSnapshot,
   getExternalEventById,
   subscribeToExternalEvents,
   subscribeToExternalSyncStatus
@@ -58,6 +64,7 @@ const MAX_POSTER_EDGE_PX = 1280;
 const MAX_EMBEDDED_POSTER_LENGTH = 420000;
 const VALID_POSTER_TYPES = ['image/jpeg', 'image/png'];
 const POSTER_STATUS_IDLE = 'No file selected. EventDesk will optimize and save your poster directly in Firestore.';
+const EVENTS_FEED_WARMUP_TIMEOUT_MS = 4500;
 
 function splitCommaValues(value) {
   if (Array.isArray(value)) return value.filter(Boolean);
@@ -317,7 +324,7 @@ function subscribeToEvents(callback, onError) {
 
       callback(allEvents);
     },
-    onError
+    withFirestoreTransportRecovery('campus events feed', onError)
   );
 }
 
@@ -366,18 +373,8 @@ function updateSeatUI(registeredCount, seatCap) {
   };
 }
 
-function isLocalPreviewMode() {
-  return /^(localhost|127\.0\.0\.1)$/i.test(window.location.hostname);
-}
-
 function getFirestoreCompatibilityHint() {
-  if (!isLocalPreviewMode()) {
-    return 'Check the Firebase rules, project config, and network connection, then refresh.';
-  }
-
-  const currentUrl = new URL(window.location.href);
-  currentUrl.searchParams.set('transport', 'long-polling');
-  return `If sign-in works but events do not load on this laptop, reopen this page with Firestore compatibility mode: ${currentUrl.pathname}${currentUrl.search}`;
+  return getFirestoreRecoveryAdvice();
 }
 
 function renderEventCards(events) {
@@ -538,15 +535,19 @@ export async function createEvent(eventData) {
   });
 }
 
+async function fetchCampusEventsSnapshot(filters = {}) {
+  const eventsQuery = query(collection(db, 'events'), orderBy('date', 'asc'));
+  const snapshot = await getDocs(eventsQuery);
+  const allEvents = snapshot.docs
+    .map((item) => normalizeEvent({ id: item.id, ...item.data() }))
+    .filter((event) => event.status !== 'Completed');
+
+  return filterEvents(allEvents, filters);
+}
+
 export async function getEvents(filters = {}) {
   try {
-    const eventsQuery = query(collection(db, 'events'), orderBy('date', 'asc'));
-    const snapshot = await getDocs(eventsQuery);
-    const allEvents = snapshot.docs
-      .map((item) => normalizeEvent({ id: item.id, ...item.data() }))
-      .filter((event) => event.status !== 'Completed');
-
-    return filterEvents(allEvents, filters);
+    return await fetchCampusEventsSnapshot(filters);
   } catch (error) {
     console.warn('Campus events unavailable:', error);
     return filterEvents([], filters);
@@ -577,20 +578,24 @@ export async function updateEventStatus(eventId, status) {
   await updateDoc(doc(db, 'events', eventId), { status });
 }
 
-export function listenToEventRegistrations(eventId, callback) {
+export function listenToEventRegistrations(eventId, callback, onError) {
   const registrationsQuery = query(
     collection(db, 'registrations'),
     where('eventId', '==', eventId)
   );
 
-  return onSnapshot(registrationsQuery, (snapshot) => {
-    const docs = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
-    callback({
-      registeredCount: docs.filter((item) => item.status === 'registered').length,
-      waitlistedCount: docs.filter((item) => item.status === 'waitlisted').length,
-      registrations: docs
-    });
-  });
+  return onSnapshot(
+    registrationsQuery,
+    (snapshot) => {
+      const docs = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+      callback({
+        registeredCount: docs.filter((item) => item.status === 'registered').length,
+        waitlistedCount: docs.filter((item) => item.status === 'waitlisted').length,
+        registrations: docs
+      });
+    },
+    withFirestoreTransportRecovery('event registrations', onError)
+  );
 }
 
 export async function initEventsPage() {
@@ -614,6 +619,8 @@ export async function initEventsPage() {
   let externalLoadError = false;
   const emptyStateTitle = document.getElementById('eventsEmptyStateTitle');
   const emptyStateCopy = document.getElementById('eventsEmptyStateCopy');
+  let campusWarmupTimer = null;
+  let externalWarmupTimer = null;
 
   showLoadingSpinner('eventsLoader', 'Loading campus events and external opportunities…');
   if (searchInput) {
@@ -751,14 +758,59 @@ export async function initEventsPage() {
     }
   };
 
+  campusWarmupTimer = window.setTimeout(async () => {
+    if (campusReady) {
+      return;
+    }
+
+    try {
+      campusEvents = await fetchCampusEventsSnapshot();
+      campusLoadError = false;
+    } catch (error) {
+      console.warn('Campus snapshot warmup failed:', error);
+      campusLoadError = true;
+      campusEvents = [];
+    } finally {
+      campusReady = true;
+      refreshFeed();
+    }
+  }, EVENTS_FEED_WARMUP_TIMEOUT_MS);
+
+  externalWarmupTimer = window.setTimeout(async () => {
+    if (externalReady) {
+      return;
+    }
+
+    try {
+      externalEvents = await fetchExternalEventsSnapshot();
+      externalLoadError = false;
+      externalSyncStatus = await fetchExternalSyncStatusSnapshot().catch(() => externalSyncStatus);
+    } catch (error) {
+      console.warn('External snapshot warmup failed:', error);
+      externalLoadError = true;
+      externalEvents = [];
+    } finally {
+      externalReady = true;
+      refreshFeed();
+    }
+  }, EVENTS_FEED_WARMUP_TIMEOUT_MS);
+
   subscribeToEvents(
     (events) => {
+      if (campusWarmupTimer) {
+        window.clearTimeout(campusWarmupTimer);
+        campusWarmupTimer = null;
+      }
       campusLoadError = false;
       campusEvents = events;
       campusReady = true;
       refreshFeed();
     },
     async (error) => {
+      if (campusWarmupTimer) {
+        window.clearTimeout(campusWarmupTimer);
+        campusWarmupTimer = null;
+      }
       console.warn('Live campus feed unavailable:', error);
       campusLoadError = true;
       campusEvents = await getEvents();
@@ -769,12 +821,20 @@ export async function initEventsPage() {
 
   subscribeToExternalEvents(
     (events) => {
+      if (externalWarmupTimer) {
+        window.clearTimeout(externalWarmupTimer);
+        externalWarmupTimer = null;
+      }
       externalLoadError = false;
       externalEvents = events;
       externalReady = true;
       refreshFeed();
     },
     (error) => {
+      if (externalWarmupTimer) {
+        window.clearTimeout(externalWarmupTimer);
+        externalWarmupTimer = null;
+      }
       console.warn('External opportunities skipped:', error);
       externalLoadError = true;
       externalEvents = [];
@@ -1286,16 +1346,22 @@ export async function initEventDetailPage() {
   syncSeatPanel(liveRegisteredCount);
 
   if (eventId && !isExternalOpportunity(event)) {
-    onSnapshot(doc(db, 'events', eventId), async (snapshot) => {
-      if (!snapshot.exists()) {
-        renderUnavailableState();
-        return;
-      }
-      event = normalizeEvent({ id: snapshot.id, ...snapshot.data() });
-      liveRegisteredCount = event.registeredCount ?? liveRegisteredCount;
-      renderEvent();
-      syncSeatPanel(liveRegisteredCount);
-    });
+    onSnapshot(
+      doc(db, 'events', eventId),
+      async (snapshot) => {
+        if (!snapshot.exists()) {
+          renderUnavailableState();
+          return;
+        }
+        event = normalizeEvent({ id: snapshot.id, ...snapshot.data() });
+        liveRegisteredCount = event.registeredCount ?? liveRegisteredCount;
+        renderEvent();
+        syncSeatPanel(liveRegisteredCount);
+      },
+      withFirestoreTransportRecovery('event detail live updates', (error) => {
+        console.warn('Event detail live updates unavailable:', error);
+      })
+    );
   }
 
   const openRegistrationFlow = async () => {
@@ -1845,7 +1911,18 @@ function renderOrganizerEvents(eventModels, handlers) {
 }
 
 export async function initOrganizerDashboard() {
-  const { user } = await checkAuth('organizer');
+  let session;
+  try {
+    session = await checkAuth('organizer');
+  } catch (error) {
+    if (error?.message !== 'Unauthenticated' && error?.message !== 'Role mismatch') {
+      console.error('Organizer dashboard auth bootstrap failed:', error);
+      showToast('EventDesk could not load your organizer dashboard right now. Refresh and try again.', 'error');
+    }
+    return;
+  }
+
+  const { user } = session;
   const createEventModalElement = document.getElementById('createEventModal');
   const createEventModal = new bootstrap.Modal(createEventModalElement);
   const manageEventModal = new bootstrap.Modal(document.getElementById('manageEventModal'));
@@ -2450,43 +2527,51 @@ export async function initOrganizerDashboard() {
 
   let orgRefreshTimer = null;
 
-  onSnapshot(query(collection(db, 'events'), where('organizerId', '==', user.uid)), (snapshot) => {
-    const events = snapshot.docs
-      .map((item) => normalizeEvent({ id: item.id, ...item.data() }))
-      .sort((left, right) => getEventDateValue(left) - getEventDateValue(right));
+  onSnapshot(
+    query(collection(db, 'events'), where('organizerId', '==', user.uid)),
+    (snapshot) => {
+      const events = snapshot.docs
+        .map((item) => normalizeEvent({ id: item.id, ...item.data() }))
+        .sort((left, right) => getEventDateValue(left) - getEventDateValue(right));
 
-    if (orgRefreshTimer) clearTimeout(orgRefreshTimer);
-    orgRefreshTimer = setTimeout(async () => {
-      orgRefreshTimer = null;
+      if (orgRefreshTimer) clearTimeout(orgRefreshTimer);
+      orgRefreshTimer = setTimeout(async () => {
+        orgRefreshTimer = null;
 
-      allEventModels = await Promise.all(
-        events.map(async (event) => ({
-          event,
-          metrics: await getOrganizerEventMetrics(event.id)
-        }))
-      );
+        allEventModels = await Promise.all(
+          events.map(async (event) => ({
+            event,
+            metrics: await getOrganizerEventMetrics(event.id)
+          }))
+        );
 
-      const totalRegistered = allEventModels.reduce((sum, item) => sum + item.metrics.registered, 0);
-      const totalWaitlisted = allEventModels.reduce((sum, item) => sum + item.metrics.waitlisted, 0);
-      const totalAttended = allEventModels.reduce((sum, item) => sum + item.metrics.attended, 0);
+        const totalRegistered = allEventModels.reduce((sum, item) => sum + item.metrics.registered, 0);
+        const totalWaitlisted = allEventModels.reduce((sum, item) => sum + item.metrics.waitlisted, 0);
+        const totalAttended = allEventModels.reduce((sum, item) => sum + item.metrics.attended, 0);
 
-      document.getElementById('orgStatEvents').textContent = allEventModels.length;
-      document.getElementById('orgStatRegistered').textContent = totalRegistered;
-      document.getElementById('orgStatAttended').textContent = totalAttended;
-      document.getElementById('orgStatWaitlist').textContent = totalWaitlisted;
+        document.getElementById('orgStatEvents').textContent = allEventModels.length;
+        document.getElementById('orgStatRegistered').textContent = totalRegistered;
+        document.getElementById('orgStatAttended').textContent = totalAttended;
+        document.getElementById('orgStatWaitlist').textContent = totalWaitlisted;
 
-      renderOrganizerPanels(allEventModels);
-      renderOrganizerEvents(
-        allEventModels.filter((item) => matchesOrganizerFilter(item, activeFilter)),
-        actionHandlers
-      );
+        renderOrganizerPanels(allEventModels);
+        renderOrganizerEvents(
+          allEventModels.filter((item) => matchesOrganizerFilter(item, activeFilter)),
+          actionHandlers
+        );
 
-      const selectedEvent = findSelectedManageEvent();
-      if (selectedEvent) {
-        await populateManageModal(selectedEvent);
-      }
+        const selectedEvent = findSelectedManageEvent();
+        if (selectedEvent) {
+          await populateManageModal(selectedEvent);
+        }
 
-      hideLoadingSpinner('organizerDashboardLoader', '');
-    }, 200);
-  });
+        hideLoadingSpinner('organizerDashboardLoader', '');
+      }, 200);
+    },
+    withFirestoreTransportRecovery('organizer dashboard', (error) => {
+      console.warn('Organizer dashboard live feed unavailable:', error);
+      hideLoadingSpinner('organizerDashboardLoader', 'We could not load your live events right now.');
+      showToast('EventDesk could not open the organizer live feed. Refresh and try again.', 'error');
+    })
+  );
 }

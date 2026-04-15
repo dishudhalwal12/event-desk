@@ -4,6 +4,7 @@ import {
   onSnapshot
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { auth, db } from './firebase-config.js';
+import { withFirestoreTransportRecovery } from './firestore-transport.js';
 import { hideLoadingSpinner, showLoadingSpinner } from './utils.js';
 
 function getRankLabel(index) {
@@ -198,11 +199,12 @@ export async function initLeaderboardPage() {
         renderLeaderboardPage(entries);
         hideLoadingSpinner('leaderboardLoader', '');
       },
-      async () => {
+      withFirestoreTransportRecovery('leaderboard live feed', async (error) => {
+        console.warn('Leaderboard live feed unavailable:', error);
         const entries = await getLeaderboardData();
         renderLeaderboardPage(entries);
         hideLoadingSpinner('leaderboardLoader', '');
-      }
+      })
     );
   } catch (error) {
     console.warn(error);
