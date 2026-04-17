@@ -383,7 +383,7 @@ export async function issueWinnerCertificate({
   issuedBy = auth.currentUser?.uid
 }) {
   if (!registration?.userId || !registration?.registrationId) {
-    throw new Error('Select an attended student first.');
+    throw new Error('Select a registered student first.');
   }
 
   const record = buildCertificateRecord({
@@ -417,7 +417,7 @@ export async function issueParticipationCertificates({
 }) {
   const eligible = (Array.isArray(registrations) ? registrations : []).filter((item) => item?.registrationId && item?.userId);
   if (!eligible.length) {
-    throw new Error('No attended students are available for participation certificates.');
+    throw new Error('No confirmed registrations are available for participation certificates.');
   }
 
   const records = eligible.map((registration) => buildCertificateRecord({

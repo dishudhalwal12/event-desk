@@ -2132,23 +2132,32 @@ p {
 }
 
 .scanner-frame {
-  width: min(320px, 90vw);
-  height: min(320px, 90vw);
+  width: min(440px, 94vw);
+  aspect-ratio: 4 / 3;
   border-radius: 16px;
   overflow: hidden;
   position: relative;
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(8, 15, 28, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 60px rgba(2, 6, 23, 0.35);
 }
 
 #qr-reader {
   width: 100%;
   height: 100%;
+  background: #09111f;
+}
+
+#qr-reader > div {
+  width: 100% !important;
+  height: 100% !important;
 }
 
 #qr-reader video {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  background: #09111f;
 }
 
 .scanner-line {

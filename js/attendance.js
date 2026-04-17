@@ -21,17 +21,14 @@ let activeScannerEventId = null;
 let scanLocked = false;
 const SCAN_LOCK_RELEASE_MS = 900;
 
-function getScannerBoxSize(viewfinderWidth, viewfinderHeight) {
-  const shortestSide = Math.min(viewfinderWidth, viewfinderHeight);
-  const dimension = Math.max(220, Math.min(Math.floor(shortestSide * 0.72), 340));
-  return { width: dimension, height: dimension };
+function isMobileBrowser() {
+  return /android|iphone|ipad|ipod/i.test(window.navigator.userAgent || '');
 }
 
 function getScannerConfig() {
   return {
-    fps: 15,
-    qrbox: getScannerBoxSize,
-    aspectRatio: 1
+    fps: 12,
+    disableFlip: false
   };
 }
 
@@ -40,26 +37,72 @@ function getQrFormats() {
   return qrFormat !== undefined ? [qrFormat] : undefined;
 }
 
-function choosePreferredCamera(cameras = []) {
-  return cameras.find((camera) => /(back|rear|environment)/i.test(camera.label))
-    || cameras.find((camera) => /(wide|ultra|triple)/i.test(camera.label))
-    || cameras[0]
-    || null;
+function getScannerConstructorConfig() {
+  const config = {
+    useBarCodeDetectorIfSupported: true,
+    verbose: false
+  };
+  const formats = getQrFormats();
+  if (formats) {
+    config.formatsToSupport = formats;
+  }
+  return config;
 }
 
-async function getBestCameraSelection() {
+function scoreCamera(camera) {
+  const label = String(camera?.label || '').toLowerCase();
+  const mobile = isMobileBrowser();
+  let score = 0;
+
+  if (mobile) {
+    if (/(back|rear|environment)/i.test(label)) score += 120;
+    if (/(wide|ultra|tele)/i.test(label)) score += 25;
+    if (/(front|user|facetime)/i.test(label)) score -= 40;
+  } else {
+    if (/(front|user|facetime|webcam|integrated)/i.test(label)) score += 120;
+    if (/(back|rear|environment)/i.test(label)) score += 40;
+  }
+
+  if (/default/.test(label)) score += 8;
+  if (camera?.id === '0') score += 4;
+
+  return score;
+}
+
+async function getAvailableCameras() {
   if (typeof window.Html5Qrcode?.getCameras !== 'function') {
-    return { facingMode: 'environment' };
+    return [];
   }
 
   try {
     const cameras = await window.Html5Qrcode.getCameras();
-    const preferred = choosePreferredCamera(cameras);
-    return preferred?.id || { facingMode: 'environment' };
+    return [...cameras].sort((left, right) => scoreCamera(right) - scoreCamera(left));
   } catch (error) {
     console.warn('Camera discovery fallback:', error);
-    return { facingMode: 'environment' };
+    return [];
   }
+}
+
+function getCameraCandidates(cameras = []) {
+  const candidates = cameras
+    .map((camera) => camera?.id)
+    .filter(Boolean);
+
+  if (isMobileBrowser()) {
+    candidates.push(
+      { facingMode: { ideal: 'environment' } },
+      { facingMode: 'environment' },
+      { facingMode: { ideal: 'user' } }
+    );
+  } else {
+    candidates.push(
+      { facingMode: { ideal: 'user' } },
+      { facingMode: 'user' },
+      { facingMode: { ideal: 'environment' } }
+    );
+  }
+
+  return candidates;
 }
 
 async function getAttendanceRecord(registrationId) {
@@ -86,6 +129,29 @@ function setScannerResult(type, title, subtitle = '') {
   if (!card) return;
   card.className = `scanner-result-card ${type}`;
   card.innerHTML = `<strong>${title}</strong><span>${subtitle}</span>`;
+}
+
+async function startScannerWithFallbacks(onScanSuccess) {
+  const cameras = await getAvailableCameras();
+  const candidates = getCameraCandidates(cameras);
+  let lastError = null;
+
+  for (const candidate of candidates) {
+    try {
+      await html5QrCode.start(
+        candidate,
+        getScannerConfig(),
+        onScanSuccess,
+        () => {}
+      );
+      return candidate;
+    } catch (error) {
+      lastError = error;
+      console.warn('Scanner candidate failed:', candidate, error);
+    }
+  }
+
+  throw lastError || new Error('No camera could be started for scanning.');
 }
 
 export async function validateAndMarkAttendance(qrData, eventId) {
@@ -165,34 +231,22 @@ export async function initScanner(elementId, eventId) {
   }
 
   activeScannerEventId = eventId;
-  html5QrCode = new window.Html5Qrcode(
-    elementId,
-    getQrFormats() ? { formatsToSupport: getQrFormats() } : undefined
-  );
+  html5QrCode = new window.Html5Qrcode(elementId, getScannerConstructorConfig());
+  setScannerResult('warning', 'Starting camera…', 'Allow webcam access if your browser asks. The QR can sit anywhere in the frame.');
 
-  const cameraSelection = await getBestCameraSelection();
   const onScanSuccess = async (decodedText) => {
     await validateAndMarkAttendance(decodedText, activeScannerEventId);
   };
 
   try {
-    await html5QrCode.start(
-      cameraSelection,
-      getScannerConfig(),
-      onScanSuccess,
-      () => {}
-    );
+    await startScannerWithFallbacks(onScanSuccess);
+    setScannerResult('', 'Ready to scan', 'The QR can be off-center. Laptop webcams and phone cameras are both supported.');
   } catch (error) {
-    if (typeof cameraSelection === 'string') {
-      await html5QrCode.start(
-        { facingMode: 'environment' },
-        getScannerConfig(),
-        onScanSuccess,
-        () => {}
-      );
-    } else {
-      throw error;
-    }
+    console.error(error);
+    setScannerResult('error', 'Could not start the camera ❌', 'Allow webcam access and reopen the scanner, or try another available camera.');
+    showToast('Could not start the QR scanner on this device.', 'error');
+    await stopScanner();
+    return null;
   }
 
   return html5QrCode;
