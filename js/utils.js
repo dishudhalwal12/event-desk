@@ -57,6 +57,52 @@ export function validateEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || '').trim());
 }
 
+const REGISTRATION_QR_PREFIX = 'ED1';
+
+export function buildRegistrationQrPayload(registrationId, userId, eventId) {
+  return [REGISTRATION_QR_PREFIX, registrationId, userId, eventId].join('|');
+}
+
+export function parseRegistrationQrPayload(value) {
+  const raw = String(value || '').trim();
+  if (!raw) {
+    throw new Error('QR payload is empty.');
+  }
+
+  if (raw.startsWith(`${REGISTRATION_QR_PREFIX}|`)) {
+    const [, regId, userId, eventId] = raw.split('|');
+    if (!regId || !userId || !eventId) {
+      throw new Error('QR payload is incomplete.');
+    }
+    return { regId, userId, eventId };
+  }
+
+  const parsed = JSON.parse(raw);
+  const regId = parsed?.regId || parsed?.r;
+  const userId = parsed?.userId || parsed?.u;
+  const eventId = parsed?.eventId || parsed?.e;
+
+  if (!regId || !userId || !eventId) {
+    throw new Error('QR payload is incomplete.');
+  }
+
+  return { regId, userId, eventId };
+}
+
+export function getQrCodeOptions(value, size = 220) {
+  const options = {
+    text: value,
+    width: size,
+    height: size
+  };
+
+  if (window.QRCode?.CorrectLevel?.H !== undefined) {
+    options.correctLevel = window.QRCode.CorrectLevel.H;
+  }
+
+  return options;
+}
+
 export function showToast(message, type = 'info') {
   let container = document.querySelector('.toast-container-custom');
   if (!container) {
