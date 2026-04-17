@@ -1,3 +1,5 @@
+import { getQrCodeOptions } from './utils.js';
+
 const PUBLIC_KEY = 'YOUR_EMAILJS_PUBLIC_KEY';
 const SERVICE_ID = 'YOUR_EMAILJS_SERVICE_ID';
 const CONFIRMATION_TEMPLATE = 'YOUR_CONFIRMATION_TEMPLATE_ID';
@@ -36,11 +38,7 @@ function createQrDataUrl(qrValue) {
     wrapper.style.position = 'fixed';
     wrapper.style.left = '-9999px';
     document.body.appendChild(wrapper);
-    new window.QRCode(wrapper, {
-      text: qrValue,
-      width: 220,
-      height: 220
-    });
+    new window.QRCode(wrapper, getQrCodeOptions(qrValue, 240));
 
     window.setTimeout(() => {
       const canvas = wrapper.querySelector('canvas');

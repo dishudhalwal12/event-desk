@@ -1,19 +1,85 @@
 import {
-  addDoc,
   collection,
   doc,
   getDoc,
   getDocs,
   query,
+  setDoc,
   serverTimestamp,
   where
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { db } from './firebase-config.js';
-import { checkOnline, formatDate, showToast } from './utils.js';
+import {
+  checkOnline,
+  formatDate,
+  parseRegistrationQrPayload,
+  showToast
+} from './utils.js';
 
 let html5QrCode = null;
 let activeScannerEventId = null;
 let scanLocked = false;
+const SCAN_LOCK_RELEASE_MS = 900;
+
+function getScannerBoxSize(viewfinderWidth, viewfinderHeight) {
+  const shortestSide = Math.min(viewfinderWidth, viewfinderHeight);
+  const dimension = Math.max(220, Math.min(Math.floor(shortestSide * 0.72), 340));
+  return { width: dimension, height: dimension };
+}
+
+function getScannerConfig() {
+  return {
+    fps: 15,
+    qrbox: getScannerBoxSize,
+    aspectRatio: 1
+  };
+}
+
+function getQrFormats() {
+  const qrFormat = window.Html5QrcodeSupportedFormats?.QR_CODE;
+  return qrFormat !== undefined ? [qrFormat] : undefined;
+}
+
+function choosePreferredCamera(cameras = []) {
+  return cameras.find((camera) => /(back|rear|environment)/i.test(camera.label))
+    || cameras.find((camera) => /(wide|ultra|triple)/i.test(camera.label))
+    || cameras[0]
+    || null;
+}
+
+async function getBestCameraSelection() {
+  if (typeof window.Html5Qrcode?.getCameras !== 'function') {
+    return { facingMode: 'environment' };
+  }
+
+  try {
+    const cameras = await window.Html5Qrcode.getCameras();
+    const preferred = choosePreferredCamera(cameras);
+    return preferred?.id || { facingMode: 'environment' };
+  } catch (error) {
+    console.warn('Camera discovery fallback:', error);
+    return { facingMode: 'environment' };
+  }
+}
+
+async function getAttendanceRecord(registrationId) {
+  const attendanceRef = doc(db, 'attendance', registrationId);
+  const directSnapshot = await getDoc(attendanceRef);
+
+  if (directSnapshot.exists()) {
+    return { ref: attendanceRef, data: directSnapshot.data() };
+  }
+
+  const legacySnapshot = await getDocs(
+    query(collection(db, 'attendance'), where('registrationId', '==', registrationId))
+  );
+
+  if (!legacySnapshot.empty) {
+    return { ref: attendanceRef, data: legacySnapshot.docs[0].data() };
+  }
+
+  return { ref: attendanceRef, data: null };
+}
 
 function setScannerResult(type, title, subtitle = '') {
   const card = document.getElementById('scannerResultCard');
@@ -28,19 +94,16 @@ export async function validateAndMarkAttendance(qrData, eventId) {
   scanLocked = true;
 
   try {
-    const parsed = JSON.parse(qrData);
+    const parsed = parseRegistrationQrPayload(qrData);
     if (parsed.eventId !== eventId) {
       setScannerResult('error', 'This QR is not for this event ❌');
       return { success: false, reason: 'invalid-event' };
     }
 
-    const duplicateQuery = query(
-      collection(db, 'attendance'),
-      where('registrationId', '==', parsed.regId)
-    );
-    const existingAttendance = await getDocs(duplicateQuery);
-
-    const registrationSnapshot = await getDoc(doc(db, 'registrations', parsed.regId));
+    const [registrationSnapshot, attendanceRecord] = await Promise.all([
+      getDoc(doc(db, 'registrations', parsed.regId)),
+      getAttendanceRecord(parsed.regId)
+    ]);
     const registrationData = registrationSnapshot.exists() ? registrationSnapshot.data() : null;
     const studentName = registrationData?.name || 'Student';
 
@@ -49,8 +112,8 @@ export async function validateAndMarkAttendance(qrData, eventId) {
       return { success: false, reason: 'missing-registration' };
     }
 
-    if (!existingAttendance.empty) {
-      const attendanceData = existingAttendance.docs[0].data();
+    if (attendanceRecord.data) {
+      const attendanceData = attendanceRecord.data;
       setScannerResult(
         'warning',
         `Already marked attended 🔁 ${studentName} checked in at ${formatDate(attendanceData.scannedAt)}`
@@ -68,7 +131,7 @@ export async function validateAndMarkAttendance(qrData, eventId) {
       return { success: false, reason: 'not-confirmed' };
     }
 
-    await addDoc(collection(db, 'attendance'), {
+    await setDoc(attendanceRecord.ref, {
       registrationId: parsed.regId,
       eventId,
       userId: parsed.userId,
@@ -86,7 +149,7 @@ export async function validateAndMarkAttendance(qrData, eventId) {
   } finally {
     window.setTimeout(() => {
       scanLocked = false;
-    }, 1500);
+    }, SCAN_LOCK_RELEASE_MS);
   }
 }
 
@@ -97,16 +160,41 @@ export async function initScanner(elementId, eventId) {
     return null;
   }
 
+  if (html5QrCode) {
+    await stopScanner();
+  }
+
   activeScannerEventId = eventId;
-  html5QrCode = new window.Html5Qrcode(elementId);
-  await html5QrCode.start(
-    { facingMode: 'environment' },
-    { fps: 10, qrbox: { width: 300, height: 300 } },
-    async (decodedText) => {
-      await validateAndMarkAttendance(decodedText, activeScannerEventId);
-    },
-    () => {}
+  html5QrCode = new window.Html5Qrcode(
+    elementId,
+    getQrFormats() ? { formatsToSupport: getQrFormats() } : undefined
   );
+
+  const cameraSelection = await getBestCameraSelection();
+  const onScanSuccess = async (decodedText) => {
+    await validateAndMarkAttendance(decodedText, activeScannerEventId);
+  };
+
+  try {
+    await html5QrCode.start(
+      cameraSelection,
+      getScannerConfig(),
+      onScanSuccess,
+      () => {}
+    );
+  } catch (error) {
+    if (typeof cameraSelection === 'string') {
+      await html5QrCode.start(
+        { facingMode: 'environment' },
+        getScannerConfig(),
+        onScanSuccess,
+        () => {}
+      );
+    } else {
+      throw error;
+    }
+  }
+
   return html5QrCode;
 }
 

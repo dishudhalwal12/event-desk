@@ -18,6 +18,8 @@ import { downloadIssuedCertificate, generateCertificate, subscribeToUserCertific
 import { sendConfirmationEmail, sendWaitlistNotification } from './email.js';
 import { withFirestoreTransportRecovery } from './firestore-transport.js';
 import {
+  buildRegistrationQrPayload,
+  getQrCodeOptions,
   formatDate,
   formatShortDate,
   getCampusEventRegistrationState,
@@ -150,7 +152,7 @@ function buildTeamPayload(userId, userProfile, phone, teamOptions = {}) {
 }
 
 function buildRegistrationQrCode(registrationId, userId, eventId) {
-  return JSON.stringify({ regId: registrationId, userId, eventId });
+  return buildRegistrationQrPayload(registrationId, userId, eventId);
 }
 
 function assertEventAcceptsRegistrations(eventData) {
@@ -404,11 +406,7 @@ function renderQrCode(value) {
   const wrapper = document.getElementById('studentQrCode');
   if (!wrapper) return;
   wrapper.innerHTML = '';
-  new window.QRCode(wrapper, {
-    text: value,
-    width: 200,
-    height: 200
-  });
+  new window.QRCode(wrapper, getQrCodeOptions(value, 240));
 }
 
 function downloadQrImage() {
