@@ -404,19 +404,20 @@ export async function getStudentRegistrations(userId) {
 
 function renderQrCode(value) {
   const wrapper = document.getElementById('studentQrCode');
-  const tokenDisplay = document.getElementById('studentQrToken');
+  const tokenInput = document.getElementById('studentQrToken');
   const copyButton = document.getElementById('copyTokenButton');
   
   if (!wrapper) return;
   wrapper.innerHTML = '';
   new window.QRCode(wrapper, getQrCodeOptions(value, 240));
   
-  if (tokenDisplay) {
-    tokenDisplay.textContent = value;
+  if (tokenInput) {
+    tokenInput.value = value;
   }
 
   if (copyButton) {
     copyButton.onclick = () => {
+      tokenInput?.select();
       navigator.clipboard.writeText(value).then(() => {
         const originalText = copyButton.textContent;
         copyButton.textContent = 'Copied!';

@@ -331,10 +331,10 @@
           <h3 id="qrEventName" class="mb-2">Event Name</h3>
           <p class="text-muted mb-4">Show this at the event entrance.</p>
           <div class="mb-4">
-            <span class="text-muted small d-block mb-1">Attendance Token</span>
-            <div class="d-flex gap-2">
-              <code id="studentQrToken" class="d-block p-2 bg-light border rounded text-dark text-break flex-grow-1"></code>
-              <button id="copyTokenButton" class="btn btn-sm btn-outline-primary">Copy</button>
+            <label class="text-muted small d-block mb-1">Attendance Token</label>
+            <div class="input-group">
+              <input type="text" id="studentQrToken" class="form-control" readonly placeholder="Token will appear here">
+              <button id="copyTokenButton" class="btn btn-outline-primary" type="button">Copy</button>
             </div>
           </div>
           <button id="saveQrButton" class="btn btn-outline-primary w-100">Save QR</button>

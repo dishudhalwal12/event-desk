@@ -1972,12 +1972,22 @@ export async function initOrganizerDashboard() {
   const registerTokenButton = document.getElementById('registerTokenButton');
   const qrUploadInput = document.getElementById('qrUploadInput');
   const qrUploadStatus = document.getElementById('qrUploadStatus');
+  const scanUploadButton = document.getElementById('scanUploadButton');
 
   qrUploadInput?.addEventListener('change', async (event) => {
     const file = event.target.files?.[0];
     if (!file || !activeScanningEventId) return;
     await handleQrUpload(file, activeScanningEventId);
     event.target.value = ''; 
+  });
+
+  scanUploadButton?.addEventListener('click', async () => {
+    const file = qrUploadInput?.files?.[0];
+    if (!file || !activeScanningEventId) {
+      showToast('Please select a file first.', 'warning');
+      return;
+    }
+    await handleQrUpload(file, activeScanningEventId);
   });
 
   registerTokenButton?.addEventListener('click', async () => {

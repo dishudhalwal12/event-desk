@@ -223,22 +223,19 @@ export async function validateAndMarkAttendance(qrData, eventId) {
 export async function handleQrUpload(file, eventId) {
   const status = document.getElementById('qrUploadStatus');
   
-  if (!html5QrCode) {
-    // If not initialized, initialize but don't start the camera
-    html5QrCode = new window.Html5Qrcode('qr-reader', getScannerConstructorConfig());
-  }
+  // Use a local instance if the main one is busy or null
+  const localScanner = html5QrCode || new window.Html5Qrcode('qr-reader', getScannerConstructorConfig());
 
   if (status) {
     status.className = 'mt-2 small text-center text-primary';
-    status.textContent = 'Processing image... ⏳';
+    status.textContent = 'Scanning image... ⏳';
   }
 
   try {
-    // scanFile works even if the camera stream hasn't started
-    const decodedText = await html5QrCode.scanFile(file, true);
+    const decodedText = await localScanner.scanFile(file, true);
     if (status) {
       status.className = 'mt-2 small text-center text-success';
-      status.textContent = 'QR decoded successfully! ✅';
+      status.textContent = 'QR decoded! Marking attendance... ✅';
     }
     await validateAndMarkAttendance(decodedText, eventId);
   } catch (error) {
