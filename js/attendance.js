@@ -221,18 +221,20 @@ export async function validateAndMarkAttendance(qrData, eventId) {
 }
 
 export async function handleQrUpload(file, eventId) {
+  const status = document.getElementById('qrUploadStatus');
+  
   if (!html5QrCode) {
-    showToast('Scanner must be active to upload images.', 'warning');
-    return;
+    // If not initialized, initialize but don't start the camera
+    html5QrCode = new window.Html5Qrcode('qr-reader', getScannerConstructorConfig());
   }
 
-  const status = document.getElementById('qrUploadStatus');
   if (status) {
     status.className = 'mt-2 small text-center text-primary';
     status.textContent = 'Processing image... ⏳';
   }
 
   try {
+    // scanFile works even if the camera stream hasn't started
     const decodedText = await html5QrCode.scanFile(file, true);
     if (status) {
       status.className = 'mt-2 small text-center text-success';

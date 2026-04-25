@@ -405,11 +405,24 @@ export async function getStudentRegistrations(userId) {
 function renderQrCode(value) {
   const wrapper = document.getElementById('studentQrCode');
   const tokenDisplay = document.getElementById('studentQrToken');
+  const copyButton = document.getElementById('copyTokenButton');
+  
   if (!wrapper) return;
   wrapper.innerHTML = '';
   new window.QRCode(wrapper, getQrCodeOptions(value, 240));
+  
   if (tokenDisplay) {
     tokenDisplay.textContent = value;
+  }
+
+  if (copyButton) {
+    copyButton.onclick = () => {
+      navigator.clipboard.writeText(value).then(() => {
+        const originalText = copyButton.textContent;
+        copyButton.textContent = 'Copied!';
+        setTimeout(() => { copyButton.textContent = originalText; }, 2000);
+      });
+    };
   }
 }
 
