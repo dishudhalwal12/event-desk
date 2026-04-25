@@ -13,7 +13,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { auth, db } from './firebase-config.js';
 import { checkAuth, fetchUserProfile, signOutUser } from './auth.js';
-import { initScanner, stopScanner, validateAndMarkAttendance } from './attendance.js';
+import { initScanner, stopScanner, validateAndMarkAttendance, handleQrUpload } from './attendance.js';
 import { fetchEventCertificates, issueParticipationCertificates, issueWinnerCertificate } from './certificate.js';
 import { promoteFromWaitlist, registerStudent } from './registration.js';
 import {
@@ -1970,6 +1970,15 @@ export async function initOrganizerDashboard() {
 
   const attendanceTokenInput = document.getElementById('attendanceTokenInput');
   const registerTokenButton = document.getElementById('registerTokenButton');
+  const qrUploadInput = document.getElementById('qrUploadInput');
+  const qrUploadStatus = document.getElementById('qrUploadStatus');
+
+  qrUploadInput?.addEventListener('change', async (event) => {
+    const file = event.target.files?.[0];
+    if (!file || !activeScanningEventId) return;
+    await handleQrUpload(file, activeScanningEventId);
+    event.target.value = ''; 
+  });
 
   registerTokenButton?.addEventListener('click', async () => {
     if (!activeScanningEventId) {
@@ -2518,6 +2527,11 @@ export async function initOrganizerDashboard() {
     await stopScanner();
     activeScanningEventId = null;
     if (attendanceTokenInput) attendanceTokenInput.value = '';
+    if (qrUploadInput) qrUploadInput.value = '';
+    if (qrUploadStatus) {
+      qrUploadStatus.textContent = '';
+      qrUploadStatus.className = 'mt-2 small text-center';
+    }
     document.getElementById('scannerResultCard').className = 'scanner-result-card';
     document.getElementById('scannerResultCard').innerHTML = '<strong>Ready to scan</strong><span>Results appear here after each QR check-in. The QR can be anywhere in the frame.</span>';
   });

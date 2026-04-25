@@ -404,9 +404,13 @@ export async function getStudentRegistrations(userId) {
 
 function renderQrCode(value) {
   const wrapper = document.getElementById('studentQrCode');
+  const tokenDisplay = document.getElementById('studentQrToken');
   if (!wrapper) return;
   wrapper.innerHTML = '';
   new window.QRCode(wrapper, getQrCodeOptions(value, 240));
+  if (tokenDisplay) {
+    tokenDisplay.textContent = value;
+  }
 }
 
 function downloadQrImage() {

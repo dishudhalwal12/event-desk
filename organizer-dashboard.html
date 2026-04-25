@@ -686,6 +686,12 @@
             <div class="form-text text-center mt-2">QR scanner acting up? Paste the attendance token from the student's ticket.</div>
           </div>
 
+          <div class="mt-4 pt-3 border-top">
+            <label class="form-label d-block mb-2 text-center">Or upload a QR code image</label>
+            <input type="file" id="qrUploadInput" class="form-control" accept="image/*">
+            <div id="qrUploadStatus" class="mt-2 small text-center"></div>
+          </div>
+
           <div id="scannerResultCard" class="scanner-result-card">
             <strong>Ready to scan</strong>
             <span>Results appear here after each QR check-in.</span>

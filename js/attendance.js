@@ -27,8 +27,9 @@ function isMobileBrowser() {
 
 function getScannerConfig() {
   return {
-    fps: 12,
-    disableFlip: false
+    fps: 25,
+    disableFlip: false,
+    qrbox: { width: 250, height: 250 }
   };
 }
 
@@ -216,6 +217,35 @@ export async function validateAndMarkAttendance(qrData, eventId) {
     window.setTimeout(() => {
       scanLocked = false;
     }, SCAN_LOCK_RELEASE_MS);
+  }
+}
+
+export async function handleQrUpload(file, eventId) {
+  if (!html5QrCode) {
+    showToast('Scanner must be active to upload images.', 'warning');
+    return;
+  }
+
+  const status = document.getElementById('qrUploadStatus');
+  if (status) {
+    status.className = 'mt-2 small text-center text-primary';
+    status.textContent = 'Processing image... ⏳';
+  }
+
+  try {
+    const decodedText = await html5QrCode.scanFile(file, true);
+    if (status) {
+      status.className = 'mt-2 small text-center text-success';
+      status.textContent = 'QR decoded successfully! ✅';
+    }
+    await validateAndMarkAttendance(decodedText, eventId);
+  } catch (error) {
+    console.error('QR Upload error:', error);
+    if (status) {
+      status.className = 'mt-2 small text-center text-danger';
+      status.textContent = 'Could not find a QR code in this image. ❌';
+    }
+    showToast('Could not find a QR code in this image.', 'error');
   }
 }
 
