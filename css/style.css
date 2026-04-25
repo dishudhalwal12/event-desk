@@ -6302,3 +6302,23 @@ html[data-theme="dark"] .certificate-selected-card {
     align-items: flex-start;
   }
 }
+
+/* Attendance Token Styles */
+#studentQrToken {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.9rem;
+  background-color: #f8f9fa !important;
+  color: #212529 !important;
+  border: 1px solid #dee2e6;
+  text-align: center;
+}
+
+[data-theme="dark"] #studentQrToken {
+  background-color: #2b3035 !important;
+  color: #f8f9fa !important;
+  border-color: #495057;
+}
+
+#studentQrToken::placeholder {
+  color: #adb5bd;
+}

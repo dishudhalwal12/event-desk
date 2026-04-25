@@ -222,29 +222,31 @@ export async function validateAndMarkAttendance(qrData, eventId) {
 
 export async function handleQrUpload(file, eventId) {
   const status = document.getElementById('qrUploadStatus');
-  
-  // Use a local instance if the main one is busy or null
-  const localScanner = html5QrCode || new window.Html5Qrcode('qr-reader', getScannerConstructorConfig());
-
   if (status) {
     status.className = 'mt-2 small text-center text-primary';
     status.textContent = 'Scanning image... ⏳';
   }
 
+  // Create a temporary scanner instance just for this file to avoid camera conflicts
+  const fileScanner = new window.Html5Qrcode('qr-reader', { verbose: false });
+
   try {
-    const decodedText = await localScanner.scanFile(file, true);
+    const decodedText = await fileScanner.scanFile(file, true);
     if (status) {
       status.className = 'mt-2 small text-center text-success';
-      status.textContent = 'QR decoded! Marking attendance... ✅';
+      status.textContent = 'QR detected! Marking attendance... ✅';
     }
     await validateAndMarkAttendance(decodedText, eventId);
   } catch (error) {
-    console.error('QR Upload error:', error);
+    console.warn('QR scan error:', error);
     if (status) {
       status.className = 'mt-2 small text-center text-danger';
-      status.textContent = 'Could not find a QR code in this image. ❌';
+      status.textContent = 'No QR code found in this image. ❌';
     }
-    showToast('Could not find a QR code in this image.', 'error');
+    showToast('No QR code found in this image. Try another angle or screenshot.', 'warning');
+  } finally {
+    // Clear the temporary instance if it was created
+    try { await fileScanner.clear(); } catch(e) {}
   }
 }
 

@@ -409,19 +409,30 @@ function renderQrCode(value) {
   
   if (!wrapper) return;
   wrapper.innerHTML = '';
-  new window.QRCode(wrapper, getQrCodeOptions(value, 240));
+  
+  // Ensure we have a valid string value
+  const qrValue = typeof value === 'string' ? value : String(value || '');
+  
+  new window.QRCode(wrapper, getQrCodeOptions(qrValue, 240));
   
   if (tokenInput) {
-    tokenInput.value = value;
+    tokenInput.value = qrValue;
+    tokenInput.setAttribute('value', qrValue); // Force attribute for some browsers
+    tokenInput.style.color = '#000'; // Force black text
+    tokenInput.style.background = '#f8f9fa';
   }
 
   if (copyButton) {
     copyButton.onclick = () => {
       tokenInput?.select();
-      navigator.clipboard.writeText(value).then(() => {
+      tokenInput?.setSelectionRange(0, 99999); // For mobile
+      navigator.clipboard.writeText(qrValue).then(() => {
         const originalText = copyButton.textContent;
         copyButton.textContent = 'Copied!';
         setTimeout(() => { copyButton.textContent = originalText; }, 2000);
+      }).catch(err => {
+        console.error('Copy failed:', err);
+        showToast('Could not copy token automatically.', 'warning');
       });
     };
   }
