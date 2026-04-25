@@ -677,6 +677,15 @@
         <div class="scanner-bottom-sheet">
           <h2>Point camera at student's QR 📱</h2>
           <p id="scannerEventName" class="scanner-event-name">Selected event</p>
+          
+          <div class="token-input-wrap mb-3">
+            <div class="input-group">
+              <input type="text" id="attendanceTokenInput" class="form-control" placeholder="Paste attendance token here...">
+              <button class="btn btn-primary" type="button" id="registerTokenButton">Register</button>
+            </div>
+            <div class="form-text text-center mt-2">QR scanner acting up? Paste the attendance token from the student's ticket.</div>
+          </div>
+
           <div id="scannerResultCard" class="scanner-result-card">
             <strong>Ready to scan</strong>
             <span>Results appear here after each QR check-in.</span>

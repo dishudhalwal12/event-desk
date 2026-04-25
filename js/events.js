@@ -13,7 +13,7 @@ import {
 } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 import { auth, db } from './firebase-config.js';
 import { checkAuth, fetchUserProfile, signOutUser } from './auth.js';
-import { initScanner, stopScanner } from './attendance.js';
+import { initScanner, stopScanner, validateAndMarkAttendance } from './attendance.js';
 import { fetchEventCertificates, issueParticipationCertificates, issueWinnerCertificate } from './certificate.js';
 import { promoteFromWaitlist, registerStudent } from './registration.js';
 import {
@@ -1966,6 +1966,40 @@ export async function initOrganizerDashboard() {
   let posterPreviewUrl = '';
   let selectedWinnerRegistrationId = null;
   let winnerSearchTerm = '';
+  let activeScanningEventId = null;
+
+  const attendanceTokenInput = document.getElementById('attendanceTokenInput');
+  const registerTokenButton = document.getElementById('registerTokenButton');
+
+  registerTokenButton?.addEventListener('click', async () => {
+    if (!activeScanningEventId) {
+      showToast('No active event selected for scanning.', 'error');
+      return;
+    }
+
+    const token = attendanceTokenInput?.value?.trim();
+    if (!token) {
+      showToast('Please paste an attendance token first.', 'warning');
+      return;
+    }
+
+    registerTokenButton.disabled = true;
+    const originalText = registerTokenButton.textContent;
+    registerTokenButton.textContent = 'Checking...';
+
+    try {
+      const result = await validateAndMarkAttendance(token, activeScanningEventId);
+      if (result.success) {
+        attendanceTokenInput.value = '';
+      }
+    } catch (error) {
+      console.error('Token registration failed:', error);
+      showToast('Could not register attendance with this token.', 'error');
+    } finally {
+      registerTokenButton.disabled = false;
+      registerTokenButton.textContent = originalText;
+    }
+  });
 
   signOutButton?.addEventListener('click', async () => {
     await signOutUser();
@@ -2482,6 +2516,8 @@ export async function initOrganizerDashboard() {
 
   scannerModalElement?.addEventListener('hidden.bs.modal', async () => {
     await stopScanner();
+    activeScanningEventId = null;
+    if (attendanceTokenInput) attendanceTokenInput.value = '';
     document.getElementById('scannerResultCard').className = 'scanner-result-card';
     document.getElementById('scannerResultCard').innerHTML = '<strong>Ready to scan</strong><span>Results appear here after each QR check-in. The QR can be anywhere in the frame.</span>';
   });
@@ -2493,6 +2529,7 @@ export async function initOrganizerDashboard() {
 
   const actionHandlers = {
     onScan: async (eventModel) => {
+      activeScanningEventId = eventModel.event.id;
       document.getElementById('scannerEventName').textContent = eventModel.event.title;
       scannerModal.show();
       await initScanner('qr-reader', eventModel.event.id);
