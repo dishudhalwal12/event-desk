@@ -1977,14 +1977,18 @@ export async function initOrganizerDashboard() {
   qrUploadInput?.addEventListener('change', async (event) => {
     const file = event.target.files?.[0];
     if (!file || !activeScanningEventId) return;
+    // Auto-scan on file select
     await handleQrUpload(file, activeScanningEventId);
-    event.target.value = ''; 
   });
 
   scanUploadButton?.addEventListener('click', async () => {
     const file = qrUploadInput?.files?.[0];
-    if (!file || !activeScanningEventId) {
-      showToast('Please select a file first.', 'warning');
+    if (!file) {
+      showToast('Please choose a QR image file first.', 'warning');
+      return;
+    }
+    if (!activeScanningEventId) {
+      showToast('No event selected. Please open the scanner from an event.', 'error');
       return;
     }
     await handleQrUpload(file, activeScanningEventId);
