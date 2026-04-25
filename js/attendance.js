@@ -21,18 +21,193 @@ let activeScannerEventId = null;
 let scanLocked = false;
 const SCAN_LOCK_RELEASE_MS = 900;
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
+// ─── UI Helper ───────────────────────────────────────────────────────────────
+
+function setScannerResult(type, title, subtitle = '') {
+  const card = document.getElementById('scannerResultCard');
+  if (!card) return;
+  card.className = `scanner-result-card ${type}`;
+  card.innerHTML = `<strong>${title}</strong><span>${subtitle}</span>`;
+}
+
+// ─── Firestore ───────────────────────────────────────────────────────────────
+
+async function getAttendanceRecord(registrationId) {
+  const attendanceRef = doc(db, 'attendance', registrationId);
+  const directSnap = await getDoc(attendanceRef);
+  if (directSnap.exists()) return { ref: attendanceRef, data: directSnap.data() };
+
+  const legacySnap = await getDocs(
+    query(collection(db, 'attendance'), where('registrationId', '==', registrationId))
+  );
+  return {
+    ref: attendanceRef,
+    data: legacySnap.empty ? null : legacySnap.docs[0].data()
+  };
+}
+
+// ─── Core: Mark Attendance ───────────────────────────────────────────────────
+
+export async function validateAndMarkAttendance(qrData, eventId) {
+  if (!checkOnline()) {
+    setScannerResult('error', 'No internet connection ❌', 'Connect to the internet and try again.');
+    return { success: false, reason: 'offline' };
+  }
+  if (scanLocked) return { success: false, reason: 'locked' };
+  scanLocked = true;
+
+  try {
+    let parsed;
+    try {
+      parsed = parseRegistrationQrPayload(String(qrData || '').trim());
+    } catch (parseErr) {
+      setScannerResult('error', 'Invalid Token ❌', 'This is not a valid EventDesk attendance token. Copy the full token from the student\'s QR screen.');
+      return { success: false, reason: 'invalid-format' };
+    }
+
+    if (parsed.eventId !== eventId) {
+      setScannerResult('error', 'Wrong event ❌', `Token belongs to event ID: ${parsed.eventId}. You are scanning for: ${eventId}.`);
+      return { success: false, reason: 'invalid-event' };
+    }
+
+    const [registrationSnap, attendanceRecord] = await Promise.all([
+      getDoc(doc(db, 'registrations', parsed.regId)),
+      getAttendanceRecord(parsed.regId)
+    ]);
+
+    if (!registrationSnap.exists()) {
+      setScannerResult('error', 'Registration not found ❌', 'No matching registration found in the database.');
+      return { success: false, reason: 'missing-registration' };
+    }
+
+    const reg = registrationSnap.data();
+    const studentName = reg?.name || 'Student';
+
+    if (attendanceRecord.data) {
+      setScannerResult('warning', `Already checked in 🔁`,
+        `${studentName} was already marked present at ${formatDate(attendanceRecord.data.scannedAt)}`);
+      return { success: false, reason: 'duplicate' };
+    }
+
+    if (reg?.eventId !== eventId || reg?.userId !== parsed.userId) {
+      setScannerResult('error', 'QR mismatch ❌', 'Registration data does not match this event.');
+      return { success: false, reason: 'mismatched-registration' };
+    }
+
+    if (reg?.status !== 'registered') {
+      setScannerResult('warning', `${studentName} not confirmed ⏳`,
+        `Status is "${reg?.status}". Only confirmed registrations can be marked present.`);
+      return { success: false, reason: 'not-confirmed' };
+    }
+
+    await setDoc(attendanceRecord.ref, {
+      registrationId: parsed.regId,
+      eventId,
+      userId: parsed.userId,
+      studentName,
+      scannedAt: serverTimestamp()
+    });
+
+    const time = new Date().toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
+    setScannerResult('success', `Attended ✅ ${studentName}`, `Checked in at ${time}`);
+    showToast(`✅ ${studentName} marked present!`, 'success');
+    return { success: true, studentName };
+
+  } catch (error) {
+    console.error('validateAndMarkAttendance error:', error);
+    setScannerResult('error', 'Error ❌', error?.message || 'An unexpected error occurred.');
+    return { success: false, reason: 'unknown-error' };
+  } finally {
+    window.setTimeout(() => { scanLocked = false; }, SCAN_LOCK_RELEASE_MS);
+  }
+}
+
+// ─── QR Image Upload ─────────────────────────────────────────────────────────
+// Uses jsQR (canvas-based) — zero DOM dependency, works even if camera is blocked
+
+function decodeQrFromImage(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+        // jsQR: pure JS QR decoder, no DOM conflicts whatsoever
+        if (typeof window.jsQR !== 'function') {
+          reject(new Error('jsQR library not loaded'));
+          return;
+        }
+
+        const result = window.jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: 'dontInvert'
+        });
+
+        if (result && result.data) {
+          resolve(result.data);
+        } else {
+          reject(new Error('No QR code found in image'));
+        }
+      } catch (err) {
+        reject(err);
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Could not load image file'));
+    };
+
+    img.src = objectUrl;
+  });
+}
+
+export async function handleQrUpload(file, eventId) {
+  const statusEl = document.getElementById('qrUploadStatus');
+
+  const setStatus = (cls, text) => {
+    if (statusEl) {
+      statusEl.className = `mt-2 small text-center ${cls}`;
+      statusEl.textContent = text;
+    }
+  };
+
+  if (!file) { setStatus('text-warning', '⚠️ No file selected.'); return; }
+  if (!eventId) { setStatus('text-warning', '⚠️ No event selected — open scanner from an event card.'); return; }
+
+  setStatus('text-primary', '⏳ Reading QR code from image...');
+
+  try {
+    const qrData = await decodeQrFromImage(file);
+    setStatus('text-success', `✅ QR decoded! Marking attendance...`);
+    const result = await validateAndMarkAttendance(qrData, eventId);
+    if (!result.success) {
+      // setScannerResult already shows the error in the result card
+      setStatus('text-danger', '❌ Could not mark attendance. See result card above.');
+    }
+  } catch (err) {
+    console.warn('QR image decode failed:', err?.message);
+    setStatus('text-danger', '❌ No QR code found in this image. Try saving a cleaner screenshot.');
+    showToast('No QR code detected. Try a clearer screenshot of the student\'s QR.', 'warning');
+  }
+}
+
+// ─── Camera Scanner ──────────────────────────────────────────────────────────
 
 function isMobileBrowser() {
   return /android|iphone|ipad|ipod/i.test(window.navigator.userAgent || '');
 }
 
 function getScannerConfig() {
-  return {
-    fps: 15,
-    disableFlip: false,
-    qrbox: { width: 250, height: 250 }
-  };
+  return { fps: 10, qrbox: { width: 250, height: 250 }, disableFlip: false };
 }
 
 function getScannerConstructorConfig() {
@@ -63,201 +238,51 @@ async function getAvailableCameras() {
     const cameras = await window.Html5Qrcode.getCameras();
     return [...cameras].sort((a, b) => scoreCamera(b) - scoreCamera(a));
   } catch (err) {
-    console.warn('Camera discovery failed:', err?.message || err);
+    // Permission denied — silently skip camera
+    console.warn('Camera not available:', err?.message || err);
     return [];
   }
 }
 
-function getCameraCandidates(cameras = []) {
-  const ids = cameras.map((c) => c?.id).filter(Boolean);
-  // Use plain string facing mode — object form causes "facingMode should be string" error
-  return isMobileBrowser()
-    ? [...ids, 'environment', 'user']
-    : [...ids, 'user', 'environment'];
-}
-
-// ─── Firestore ───────────────────────────────────────────────────────────────
-
-async function getAttendanceRecord(registrationId) {
-  const attendanceRef = doc(db, 'attendance', registrationId);
-  const directSnap = await getDoc(attendanceRef);
-  if (directSnap.exists()) return { ref: attendanceRef, data: directSnap.data() };
-
-  const legacySnap = await getDocs(
-    query(collection(db, 'attendance'), where('registrationId', '==', registrationId))
-  );
-  return {
-    ref: attendanceRef,
-    data: legacySnap.empty ? null : legacySnap.docs[0].data()
-  };
-}
-
-// ─── UI ─────────────────────────────────────────────────────────────────────
-
-function setScannerResult(type, title, subtitle = '') {
-  const card = document.getElementById('scannerResultCard');
-  if (!card) return;
-  card.className = `scanner-result-card ${type}`;
-  card.innerHTML = `<strong>${title}</strong><span>${subtitle}</span>`;
-}
-
-// ─── Core: Mark Attendance ───────────────────────────────────────────────────
-
-export async function validateAndMarkAttendance(qrData, eventId) {
-  if (!checkOnline()) {
-    setScannerResult('error', 'No internet connection ❌', 'Connect to the internet and try again.');
-    return { success: false, reason: 'offline' };
-  }
-  if (scanLocked) return { success: false, reason: 'locked' };
-  scanLocked = true;
-
-  try {
-    let parsed;
-    try {
-      parsed = parseRegistrationQrPayload(qrData);
-    } catch (parseErr) {
-      setScannerResult('error', 'Invalid QR / Token ❌', 'This does not look like a valid EventDesk token.');
-      return { success: false, reason: 'invalid-format' };
-    }
-
-    if (parsed.eventId !== eventId) {
-      setScannerResult('error', 'Wrong event ❌', `This QR is for a different event (${parsed.eventId}).`);
-      return { success: false, reason: 'invalid-event' };
-    }
-
-    const [registrationSnap, attendanceRecord] = await Promise.all([
-      getDoc(doc(db, 'registrations', parsed.regId)),
-      getAttendanceRecord(parsed.regId)
-    ]);
-
-    if (!registrationSnap.exists()) {
-      setScannerResult('error', 'Registration not found ❌', 'No matching registration in the database.');
-      return { success: false, reason: 'missing-registration' };
-    }
-
-    const reg = registrationSnap.data();
-    const studentName = reg?.name || 'Student';
-
-    if (attendanceRecord.data) {
-      setScannerResult('warning', `Already checked in 🔁 ${studentName}`,
-        `Checked in at ${formatDate(attendanceRecord.data.scannedAt)}`);
-      return { success: false, reason: 'duplicate' };
-    }
-
-    if (reg?.eventId !== eventId || reg?.userId !== parsed.userId) {
-      setScannerResult('error', 'QR mismatch ❌', 'Registration data does not match this event.');
-      return { success: false, reason: 'mismatched-registration' };
-    }
-
-    if (reg?.status !== 'registered') {
-      setScannerResult('warning', `${studentName} not confirmed ⏳`,
-        'Only confirmed registrations can be marked present.');
-      return { success: false, reason: 'not-confirmed' };
-    }
-
-    await setDoc(attendanceRecord.ref, {
-      registrationId: parsed.regId,
-      eventId,
-      userId: parsed.userId,
-      studentName,
-      scannedAt: serverTimestamp()
-    });
-
-    const time = new Date().toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' });
-    setScannerResult('success', `Attended ✅ ${studentName}`, `Checked in at ${time}`);
-    showToast(`✅ ${studentName} is marked present!`, 'success');
-    return { success: true, studentName };
-
-  } catch (error) {
-    console.error('validateAndMarkAttendance error:', error);
-    setScannerResult('error', 'Something went wrong ❌', error?.message || 'Please try again.');
-    return { success: false, reason: 'unknown-error' };
-  } finally {
-    window.setTimeout(() => { scanLocked = false; }, SCAN_LOCK_RELEASE_MS);
-  }
-}
-
-// ─── QR Image Upload ─────────────────────────────────────────────────────────
-// Uses a HIDDEN div so it never conflicts with the live camera scanner (#qr-reader)
-
-export async function handleQrUpload(file, eventId) {
-  const status = document.getElementById('qrUploadStatus');
-
-  const setStatus = (cls, text) => {
-    if (status) {
-      status.className = `mt-2 small text-center ${cls}`;
-      status.textContent = text;
-    }
-  };
-
-  if (!file) { setStatus('text-warning', 'No file selected.'); return; }
-  if (!eventId) { setStatus('text-warning', 'No event selected.'); return; }
-  if (!window.Html5Qrcode) { setStatus('text-danger', 'Scanner library not loaded.'); return; }
-
-  setStatus('text-primary', 'Scanning image... ⏳');
-
-  // Create a hidden scratch div — keeps it 100% independent of the camera scanner
-  const scratchId = 'qr-upload-scratch-' + Date.now();
-  const scratchDiv = document.createElement('div');
-  scratchDiv.id = scratchId;
-  scratchDiv.style.display = 'none';
-  document.body.appendChild(scratchDiv);
-
-  const scanner = new window.Html5Qrcode(scratchId, { verbose: false });
-
-  try {
-    const decodedText = await scanner.scanFile(file, /* showImage= */ false);
-    setStatus('text-success', 'QR detected! Marking attendance... ✅');
-    await validateAndMarkAttendance(decodedText, eventId);
-  } catch (err) {
-    console.warn('QR image scan failed:', err?.message || err);
-    setStatus('text-danger', '❌ No QR found. Try a clearer screenshot or use the token instead.');
-    showToast('Could not read QR from this image. Try pasting the token directly.', 'warning');
-  } finally {
-    try { await scanner.clear(); } catch (_) {}
-    scratchDiv.remove();
-  }
-}
-
-// ─── Camera Scanner ──────────────────────────────────────────────────────────
-
 async function startScannerWithFallbacks(onScanSuccess) {
   const cameras = await getAvailableCameras();
-  const candidates = getCameraCandidates(cameras);
-  let lastError = null;
 
-  for (const candidate of candidates) {
-    if (!html5QrCode) break; // aborted
+  // Only try real camera device IDs — never facingMode strings/objects
+  // facingMode causes "should be string or object with exact key" errors in html5-qrcode
+  const candidates = cameras.map((c) => c.id).filter(Boolean);
+
+  if (candidates.length === 0) {
+    throw new Error('No cameras found or camera access was denied.');
+  }
+
+  let lastError = null;
+  for (const cameraId of candidates) {
+    if (!html5QrCode) break;
     try {
-      await html5QrCode.start(candidate, getScannerConfig(), onScanSuccess, () => {});
-      return candidate; // success
+      await html5QrCode.start(cameraId, getScannerConfig(), onScanSuccess, () => {});
+      return cameraId;
     } catch (err) {
       lastError = err;
-      console.warn('Camera candidate failed:', candidate, err?.message || err);
-      // Wait briefly if transitioning
-      if (String(err).toLowerCase().includes('transition')) {
-        await new Promise((r) => setTimeout(r, 400));
-      }
+      console.warn('Camera ID failed:', cameraId, err?.message || err);
     }
   }
 
-  throw lastError || new Error('No camera could be started.');
+  throw lastError || new Error('Could not start any camera.');
 }
 
 export async function initScanner(elementId, eventId) {
   if (!checkOnline()) return null;
   if (!window.Html5Qrcode) {
-    showToast('Scanner library is missing.', 'error');
+    showToast('QR scanner library is missing.', 'error');
     return null;
   }
 
-  // Clean up any leftover instance
   if (html5QrCode) await stopScanner();
 
   activeScannerEventId = eventId;
   html5QrCode = new window.Html5Qrcode(elementId, getScannerConstructorConfig());
   setScannerResult('warning', 'Starting camera…',
-    'Allow webcam access when the browser asks. The QR can sit anywhere in the frame.');
+    'Click Allow when the browser asks for camera access. Or use the upload / token options below.');
 
   const onScanSuccess = async (decodedText) => {
     await validateAndMarkAttendance(decodedText, activeScannerEventId);
@@ -265,13 +290,12 @@ export async function initScanner(elementId, eventId) {
 
   try {
     await startScannerWithFallbacks(onScanSuccess);
-    setScannerResult('', 'Ready to scan ✅',
-      'Point the camera at the student\'s QR code. Or use the token / upload options below.');
+    setScannerResult('', 'Camera ready ✅', 'Point it at the student\'s QR code. Or use the token/upload options below.');
   } catch (err) {
-    console.error('initScanner failed:', err);
-    setScannerResult('error', 'Camera unavailable ❌',
-      'Allow webcam access and reopen, or use the "Upload QR Image" / "Paste Token" options below.');
-    showToast('Camera could not start. Use QR upload or token instead.', 'warning');
+    console.warn('Camera unavailable:', err?.message);
+    // Don't show an error toast — the upload + token options still work fine
+    setScannerResult('warning', 'Camera unavailable 📷',
+      'Camera access was blocked or no camera found. Use the "Upload QR Image" or "Paste Token" options below — they work without a camera.');
     await stopScanner();
     return null;
   }
@@ -282,13 +306,13 @@ export async function initScanner(elementId, eventId) {
 export async function stopScanner() {
   if (!html5QrCode) return;
   const instance = html5QrCode;
-  html5QrCode = null; // Prevent race: unset before async ops
+  html5QrCode = null;
 
   try {
     if (instance.isScanning) await instance.stop();
     await instance.clear();
   } catch (err) {
-    console.warn('Scanner cleanup note:', err?.message || err);
+    // Silently ignore — scanner was already stopped
   } finally {
     activeScannerEventId = null;
     scanLocked = false;

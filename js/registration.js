@@ -404,38 +404,45 @@ export async function getStudentRegistrations(userId) {
 
 function renderQrCode(value) {
   const wrapper = document.getElementById('studentQrCode');
-  const tokenInput = document.getElementById('studentQrToken');
-  const copyButton = document.getElementById('copyTokenButton');
-  
   if (!wrapper) return;
+
   wrapper.innerHTML = '';
-  
-  // Ensure we have a valid string value
-  const qrValue = typeof value === 'string' ? value : String(value || '');
-  
+  const qrValue = (typeof value === 'string' && value.trim()) ? value.trim() : String(value || '');
   new window.QRCode(wrapper, getQrCodeOptions(qrValue, 240));
-  
-  if (tokenInput) {
-    tokenInput.value = qrValue;
-    tokenInput.setAttribute('value', qrValue); // Force attribute for some browsers
-    tokenInput.style.color = '#000'; // Force black text
-    tokenInput.style.background = '#f8f9fa';
+
+  // Set token + wire copy button — called twice: immediately and after modal animation
+  function applyToken() {
+    const tokenInput = document.getElementById('studentQrToken');
+    const copyButton = document.getElementById('copyTokenButton');
+
+    if (tokenInput) {
+      tokenInput.value = qrValue;
+      tokenInput.setAttribute('value', qrValue);
+      tokenInput.removeAttribute('disabled');
+      tokenInput.style.cssText = 'color:#111!important;background:#f8f9fa!important;';
+    }
+
+    if (copyButton) {
+      copyButton.onclick = () => {
+        const inp = document.getElementById('studentQrToken');
+        if (inp) { inp.select(); inp.setSelectionRange(0, 99999); }
+        navigator.clipboard.writeText(qrValue)
+          .then(() => {
+            const orig = copyButton.textContent;
+            copyButton.textContent = 'Copied! ✅';
+            setTimeout(() => { copyButton.textContent = orig; }, 2000);
+          })
+          .catch(() => {
+            // Clipboard API blocked (InPrivate) — show the token so user can copy manually
+            showToast('Select the token field and press Ctrl+C to copy.', 'info');
+          });
+      };
+    }
   }
 
-  if (copyButton) {
-    copyButton.onclick = () => {
-      tokenInput?.select();
-      tokenInput?.setSelectionRange(0, 99999); // For mobile
-      navigator.clipboard.writeText(qrValue).then(() => {
-        const originalText = copyButton.textContent;
-        copyButton.textContent = 'Copied!';
-        setTimeout(() => { copyButton.textContent = originalText; }, 2000);
-      }).catch(err => {
-        console.error('Copy failed:', err);
-        showToast('Could not copy token automatically.', 'warning');
-      });
-    };
-  }
+  applyToken();                      // set immediately
+  setTimeout(applyToken, 50);        // set again after Bootstrap modal fade-in
+  setTimeout(applyToken, 350);       // final safety net
 }
 
 function downloadQrImage() {
