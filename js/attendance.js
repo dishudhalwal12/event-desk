@@ -90,17 +90,9 @@ function getCameraCandidates(cameras = []) {
     .filter(Boolean);
 
   if (isMobileBrowser()) {
-    candidates.push(
-      { facingMode: { ideal: 'environment' } },
-      { facingMode: 'environment' },
-      { facingMode: { ideal: 'user' } }
-    );
+    candidates.push('environment', 'user');
   } else {
-    candidates.push(
-      { facingMode: { ideal: 'user' } },
-      { facingMode: 'user' },
-      { facingMode: { ideal: 'environment' } }
-    );
+    candidates.push('user', 'environment');
   }
 
   return candidates;
@@ -139,6 +131,7 @@ async function startScannerWithFallbacks(onScanSuccess) {
 
   for (const candidate of candidates) {
     try {
+      if (!html5QrCode) break;
       await html5QrCode.start(
         candidate,
         getScannerConfig(),
@@ -148,11 +141,15 @@ async function startScannerWithFallbacks(onScanSuccess) {
       return candidate;
     } catch (error) {
       lastError = error;
-      console.warn('Scanner candidate failed:', candidate, error);
+      console.warn('Scanner candidate failed:', candidate, error?.message || error);
+      
+      if (String(error).includes('transition')) {
+        await new Promise(r => setTimeout(r, 300));
+      }
     }
   }
 
-  throw lastError || new Error('No camera could be started for scanning.');
+  throw lastError || new Error('No camera could be started.');
 }
 
 export async function validateAndMarkAttendance(qrData, eventId) {
@@ -285,13 +282,17 @@ export async function initScanner(elementId, eventId) {
 
 export async function stopScanner() {
   if (!html5QrCode) return;
+  const instance = html5QrCode;
+  html5QrCode = null; // Unset global immediately to prevent new start calls
+
   try {
-    await html5QrCode.stop();
-    await html5QrCode.clear();
+    if (instance.isScanning) {
+      await instance.stop();
+    }
+    await instance.clear();
   } catch (error) {
-    console.warn('Scanner stop skipped:', error);
+    console.warn('Scanner cleanup skipped:', error?.message || error);
   } finally {
-    html5QrCode = null;
     activeScannerEventId = null;
     scanLocked = false;
   }
